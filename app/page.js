@@ -201,12 +201,14 @@ export default function App() {
       backgroundColor: '#090d16',
       color: '#f8fafc',
       minHeight: '100vh',
+      width: '100vw',
+      maxWidth: '100%',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      paddingBottom: 'calc(85px + env(safe-area-inset-bottom))',
-      width: '100%',
-      margin: '0 auto',
+      paddingBottom: 'calc(110px + env(safe-area-inset-bottom))',
+      margin: 0,
       position: 'relative',
-      boxSizing: 'border-box'
+      boxSizing: 'border-box',
+      overflowX: 'hidden'
     }}>
       
       {/* POPUP NOTIFICA SMS */}
@@ -214,10 +216,8 @@ export default function App() {
         <div style={{
           position: 'fixed',
           top: 'calc(12px + env(safe-area-inset-top))',
-          left: '12px',
-          right: '12px',
-          maxWidth: '440px',
-          margin: '0 auto',
+          left: '16px',
+          right: '16px',
           backgroundColor: '#0f172a',
           border: '1px solid #10b981',
           borderRadius: '20px',
@@ -261,7 +261,7 @@ export default function App() {
 
       {/* HEADER iOS SAFE */}
       <header style={{
-        paddingTop: 'calc(12px + env(safe-area-inset-top))',
+        paddingTop: 'calc(16px + env(safe-area-inset-top))',
         paddingBottom: '14px',
         paddingLeft: '16px',
         paddingRight: '16px',
@@ -481,16 +481,16 @@ export default function App() {
 
       </main>
 
-      {/* NAVBAR MOBILE IN BASSO - iOS HOME BAR SAFE */}
+      {/* NAVBAR MOBILE RIALZATA ANTI-SWIPE */}
       <nav style={{
         position: 'fixed',
         bottom: 0,
         left: 0,
         right: 0,
-        backgroundColor: '#090d16f0',
+        backgroundColor: '#090d16f5',
         borderTop: '1px solid #1e293b',
-        paddingTop: '8px',
-        paddingBottom: 'calc(10px + env(safe-area-inset-bottom))',
+        paddingTop: '10px',
+        paddingBottom: 'calc(22px + env(safe-area-inset-bottom))',
         backdropFilter: 'blur(16px)',
         display: 'grid',
         gridTemplateColumns: 'repeat(4, 1fr)',
@@ -498,28 +498,28 @@ export default function App() {
       }}>
         <button 
           onClick={() => setActiveTab('overview')} 
-          style={{ background: 'none', border: 'none', color: activeTab === 'overview' ? '#34d399' : '#64748b', fontSize: '10px', fontWeight: activeTab === 'overview' ? 'bold' : 'normal', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
+          style={{ background: 'none', border: 'none', color: activeTab === 'overview' ? '#34d399' : '#64748b', fontSize: '10px', fontWeight: activeTab === 'overview' ? 'bold' : 'normal', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
           <span style={{ fontSize: '18px' }}>🏠</span>
           Home
         </button>
 
         <button 
           onClick={() => setActiveTab('auto-import')} 
-          style={{ background: 'none', border: 'none', color: activeTab === 'auto-import' ? '#34d399' : '#64748b', fontSize: '10px', fontWeight: activeTab === 'auto-import' ? 'bold' : 'normal', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
+          style={{ background: 'none', border: 'none', color: activeTab === 'auto-import' ? '#34d399' : '#64748b', fontSize: '10px', fontWeight: activeTab === 'auto-import' ? 'bold' : 'normal', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
           <span style={{ fontSize: '18px' }}>⚡</span>
           Auto-Input
         </button>
 
         <button 
           onClick={() => setActiveTab('analytics')} 
-          style={{ background: 'none', border: 'none', color: activeTab === 'analytics' ? '#34d399' : '#64748b', fontSize: '10px', fontWeight: activeTab === 'analytics' ? 'bold' : 'normal', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
+          style={{ background: 'none', border: 'none', color: activeTab === 'analytics' ? '#34d399' : '#64748b', fontSize: '10px', fontWeight: activeTab === 'analytics' ? 'bold' : 'normal', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
           <span style={{ fontSize: '18px' }}>📊</span>
           Analisi
         </button>
 
         <button 
           onClick={() => setActiveTab('settings')} 
-          style={{ background: 'none', border: 'none', color: activeTab === 'settings' ? '#34d399' : '#64748b', fontSize: '10px', fontWeight: activeTab === 'settings' ? 'bold' : 'normal', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
+          style={{ background: 'none', border: 'none', color: activeTab === 'settings' ? '#34d399' : '#64748b', fontSize: '10px', fontWeight: activeTab === 'settings' ? 'bold' : 'normal', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
           <span style={{ fontSize: '18px' }}>⚙️</span>
           Opzioni
         </button>
