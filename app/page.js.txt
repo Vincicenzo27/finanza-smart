@@ -1,0 +1,17 @@
+'use client';
+import { useState } from 'react';
+
+export default function Home() {
+  return (
+    <main style={{ padding: '20px', fontFamily: 'sans-serif', backgroundColor: '#0f172a', color: 'white', minHeight: '100vh' }}>
+      <h1>📲 Finanza Smart</h1>
+      <p style={{ color: '#94a3b8' }}>La tua app per il tracciamento automatico delle spese è attiva!</p>
+      
+      <div style={{ backgroundColor: '#1e293b', padding: '15px', borderRadius: '10px', marginTop: '20px' }}>
+        <h3>Stato Webhook iOS</h3>
+        <p>Endpoint pronto per ricevere SMS all'indirizzo:</p>
+        <code style={{ color: '#38bdf8' }}>/api/webhook</code>
+      </div>
+    </main>
+  );
+}

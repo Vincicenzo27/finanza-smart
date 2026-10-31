@@ -1,0 +1,47 @@
+import { NextResponse } from 'next/server';
+
+export async function POST(request) {
+  try {
+    const body = await request.json();
+    const { message_text, secret_key } = body;
+
+    // Controllo di sicurezza
+    if (secret_key !== "MIA_PASSWORD_SEGRETA_123") {
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+    }
+
+    if (!message_text) {
+      return NextResponse.json({ error: "Testo del messaggio mancante" }, { status: 400 });
+    }
+
+    // Estrazione dell'importo (es. "14.50" o "14,50")
+    const amountMatch = message_text.match(/(\d+[\.,]\d{2})/);
+    const amount = amountMatch ? parseFloat(amountMatch[1].replace(',', '.')) : 0;
+
+    // Estrazione del commerciante/negozio (ricerca semplice)
+    let merchant = "Spesa Automatica";
+    if (message_text.includes("presso ")) {
+      merchant = message_text.split("presso ")[1].split(" il")[0].split(" ")[0];
+    }
+
+    const newTransaction = {
+      id: Date.now(),
+      merchant: merchant || "Transazione SMS",
+      amount: amount,
+      category: "Automatica",
+      date: new Date().toISOString().split('T')[0],
+      type: "expense",
+      raw_message: message_text
+    };
+
+    console.log("Nuova transazione ricevuta via SMS:", newTransaction);
+
+    return NextResponse.json({ 
+      success: true, 
+      data: newTransaction 
+    });
+
+  } catch (error) {
+    return NextResponse.json({ error: "Errore durante l'elaborazione" }, { status: 500 });
+  }
+}
