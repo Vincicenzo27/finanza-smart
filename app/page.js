@@ -204,7 +204,7 @@ export default function App() {
       width: '100vw',
       maxWidth: '100%',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      paddingBottom: 'calc(110px + env(safe-area-inset-bottom))',
+      paddingBottom: 'calc(75px + env(safe-area-inset-bottom))',
       margin: 0,
       position: 'relative',
       boxSizing: 'border-box',
@@ -481,7 +481,7 @@ export default function App() {
 
       </main>
 
-      {/* NAVBAR MOBILE RIALZATA ANTI-SWIPE */}
+      {/* NAVBAR MOBILE RIALZATA OPTIMAL PER iOS */}
       <nav style={{
         position: 'fixed',
         bottom: 0,
@@ -489,8 +489,8 @@ export default function App() {
         right: 0,
         backgroundColor: '#090d16f5',
         borderTop: '1px solid #1e293b',
-        paddingTop: '10px',
-        paddingBottom: 'calc(22px + env(safe-area-inset-bottom))',
+        paddingTop: '8px',
+        paddingBottom: 'calc(8px + env(safe-area-inset-bottom))',
         backdropFilter: 'blur(16px)',
         display: 'grid',
         gridTemplateColumns: 'repeat(4, 1fr)',
@@ -498,28 +498,28 @@ export default function App() {
       }}>
         <button 
           onClick={() => setActiveTab('overview')} 
-          style={{ background: 'none', border: 'none', color: activeTab === 'overview' ? '#34d399' : '#64748b', fontSize: '10px', fontWeight: activeTab === 'overview' ? 'bold' : 'normal', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+          style={{ background: 'none', border: 'none', color: activeTab === 'overview' ? '#34d399' : '#64748b', fontSize: '10px', fontWeight: activeTab === 'overview' ? 'bold' : 'normal', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
           <span style={{ fontSize: '18px' }}>🏠</span>
           Home
         </button>
 
         <button 
           onClick={() => setActiveTab('auto-import')} 
-          style={{ background: 'none', border: 'none', color: activeTab === 'auto-import' ? '#34d399' : '#64748b', fontSize: '10px', fontWeight: activeTab === 'auto-import' ? 'bold' : 'normal', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+          style={{ background: 'none', border: 'none', color: activeTab === 'auto-import' ? '#34d399' : '#64748b', fontSize: '10px', fontWeight: activeTab === 'auto-import' ? 'bold' : 'normal', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
           <span style={{ fontSize: '18px' }}>⚡</span>
           Auto-Input
         </button>
 
         <button 
           onClick={() => setActiveTab('analytics')} 
-          style={{ background: 'none', border: 'none', color: activeTab === 'analytics' ? '#34d399' : '#64748b', fontSize: '10px', fontWeight: activeTab === 'analytics' ? 'bold' : 'normal', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+          style={{ background: 'none', border: 'none', color: activeTab === 'analytics' ? '#34d399' : '#64748b', fontSize: '10px', fontWeight: activeTab === 'analytics' ? 'bold' : 'normal', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
           <span style={{ fontSize: '18px' }}>📊</span>
           Analisi
         </button>
 
         <button 
           onClick={() => setActiveTab('settings')} 
-          style={{ background: 'none', border: 'none', color: activeTab === 'settings' ? '#34d399' : '#64748b', fontSize: '10px', fontWeight: activeTab === 'settings' ? 'bold' : 'normal', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+          style={{ background: 'none', border: 'none', color: activeTab === 'settings' ? '#34d399' : '#64748b', fontSize: '10px', fontWeight: activeTab === 'settings' ? 'bold' : 'normal', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
           <span style={{ fontSize: '18px' }}>⚙️</span>
           Opzioni
         </button>
