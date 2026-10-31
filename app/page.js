@@ -1,12 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Wallet, TrendingUp, TrendingDown, BellRing, Smartphone, UploadCloud, 
-  Mic, Camera, Sparkles, PieChart as PieChartIcon, ShieldCheck, Check, 
-  X, Plus, RefreshCw, Eye, EyeOff, AlertTriangle, ArrowUpRight, ArrowDownRight,
-  ChevronRight, Calendar, Tag, CreditCard, Sliders, Zap, Award, Search, Trash2
-} from 'lucide-react';
+"use client";
+import React, { useState, useEffect } from 'react';
 
-// --- INITIAL DUMMY DATA ---
+// --- DUMMY DATA INIZIALI ---
 const INITIAL_TRANSACTIONS = [
   { id: 'tx-1', merchant: 'Esselunga Milano', amount: -68.50, date: '2026-10-28', category: 'Spesa', source: 'SMS (Intesa Sanpaolo)', verified: true, icon: '🛒' },
   { id: 'tx-2', merchant: 'Accredito Stipendio', amount: 2450.00, date: '2026-10-27', category: 'Entrate', source: 'Bonifico SEPA', verified: true, icon: '💼' },
@@ -43,12 +38,8 @@ const MOCK_SMS_TEMPLATES = [
 ];
 
 export default function App() {
-  // --- STATES ---
-  const [activeTab, setActiveTab] = useState('overview'); // overview, auto-import, analytics, settings
-  const [transactions, setTransactions] = useState(() => {
-    const saved = localStorage.getItem('fin_smart_transactions');
-    return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
-  });
+  const [activeTab, setActiveTab] = useState('overview');
+  const [transactions, setTransactions] = useState([]);
   const [hideBalances, setHideBalances] = useState(false);
   const [simulatedNotification, setSimulatedNotification] = useState(null);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
@@ -59,18 +50,28 @@ export default function App() {
   const [filterCategory, setFilterCategory] = useState('Tutti');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Save to local storage
+  // Caricamento sicuro da LocalStorage solo lato client
   useEffect(() => {
-    localStorage.setItem('fin_smart_transactions', JSON.stringify(transactions));
+    const saved = localStorage.getItem('fin_smart_transactions');
+    if (saved) {
+      setTransactions(JSON.parse(saved));
+    } else {
+      setTransactions(INITIAL_TRANSACTIONS);
+    }
+  }, []);
+
+  // Salva ogni modifica
+  useEffect(() => {
+    if (transactions.length > 0) {
+      localStorage.setItem('fin_smart_transactions', JSON.stringify(transactions));
+    }
   }, [transactions]);
 
-  // Calculations
   const totalIncome = transactions.filter(t => t.amount > 0).reduce((acc, t) => acc + t.amount, 0);
   const totalExpenses = Math.abs(transactions.filter(t => t.amount < 0).reduce((acc, t) => acc + t.amount, 0));
   const currentBalance = totalIncome - totalExpenses;
-  const projectEndBalance = currentBalance - 340; // Simulated upcoming fixed bills
+  const projectEndBalance = currentBalance - 340;
 
-  // Financial Health Score Calculation (0-100)
   const calculateHealthScore = () => {
     let score = 78;
     if (totalExpenses > totalIncome * 0.8) score -= 15;
@@ -78,11 +79,8 @@ export default function App() {
     return Math.min(Math.max(score, 0), 100);
   };
 
-  // --- AUTOMATED SMS SIMULATOR HANDLER ---
   const handleSimulateBankSMS = () => {
     const randomTemplate = MOCK_SMS_TEMPLATES[Math.floor(Math.random() * MOCK_SMS_TEMPLATES.length)];
-    
-    // Auto parsing simulation logic
     let parsedAmount = -25.00;
     let parsedMerchant = 'Esercente Sconosciuto';
     let parsedCategory = 'Altro';
@@ -137,7 +135,6 @@ export default function App() {
     }
   };
 
-  // --- VOICE SIMULATION ---
   const handleVoiceInputSim = () => {
     setIsRecordingVoice(true);
     setVoiceTranscript('In ascolto...');
@@ -168,7 +165,6 @@ export default function App() {
     }, 3500);
   };
 
-  // --- OCR FILE UPLOAD SIMULATION ---
   const handleFileUploadSim = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -179,7 +175,6 @@ export default function App() {
       setIsProcessingAI(true);
 
       setTimeout(() => {
-        // AI Simulated extraction
         const newOcrTx = {
           id: 'tx-' + Date.now(),
           merchant: 'Carrefour Express',
@@ -197,7 +192,6 @@ export default function App() {
     reader.readAsDataURL(file);
   };
 
-  // Filter transactions
   const filteredTransactions = transactions.filter(t => {
     const matchesCat = filterCategory === 'Tutti' || t.category === filterCategory;
     const matchesSearch = t.merchant.toLowerCase().includes(searchQuery.toLowerCase());
@@ -205,538 +199,294 @@ export default function App() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-24 max-w-md mx-auto relative shadow-2xl border-x border-slate-800">
+    <div style={{
+      backgroundColor: '#020617',
+      color: '#f8fafc',
+      minHeight: '100vh',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      paddingBottom: '90px',
+      maxWidth: '450px',
+      margin: '0 auto',
+      position: 'relative',
+      borderLeft: '1px solid #1e293b',
+      borderRight: '1px solid #1e293b'
+    }}>
       
-      {/* SIMULATED INCOMING PUSH NOTIFICATION POPUP */}
+      {/* POPUP NOTIFICA SMS */}
       {simulatedNotification && (
-        <div className="fixed top-3 left-3 right-3 max-w-md mx-auto bg-slate-900 border border-emerald-500/50 rounded-2xl p-4 shadow-2xl z-50 animate-bounce-short backdrop-blur-md bg-opacity-95">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg">
-                <Smartphone className="w-4 h-4" />
-              </span>
-              <span className="text-xs font-semibold tracking-wider text-slate-300 uppercase">
-                {simulatedNotification.bank} Listener
-              </span>
-            </div>
-            <span className="text-[10px] text-slate-400">Adesso</span>
+        <div style={{
+          position: 'fixed',
+          top: '12px',
+          left: '12px',
+          right: '12px',
+          maxWidth: '426px',
+          margin: '0 auto',
+          backgroundColor: '#0f172a',
+          border: '1px solid #10b981',
+          borderRadius: '16px',
+          padding: '16px',
+          zIndex: 50,
+          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#34d399' }}>
+              📱 {simulatedNotification.bank} Listener
+            </span>
+            <span style={{ fontSize: '10px', color: '#94a3b8' }}>Adesso</span>
           </div>
-          <p className="text-xs text-slate-300 mb-3 bg-slate-950 p-2.5 rounded-xl border border-slate-800 italic">
+          <p style={{ fontSize: '12px', color: '#cbd5e1', marginBottom: '12px', backgroundColor: '#020617', padding: '10px', borderRadius: '10px', fontStyle: 'italic' }}>
             "{simulatedNotification.text}"
           </p>
-          <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-xl p-2.5 mb-3 flex items-center justify-between">
+          <div style={{ backgroundColor: '#064e3b40', border: '1px solid #05966950', borderRadius: '10px', padding: '10px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div className="text-xs text-slate-400">Estratto Automaticamente:</div>
-              <div className="text-sm font-bold text-slate-100">{simulatedNotification.parsed.merchant}</div>
-              <div className="text-xs text-emerald-400">{simulatedNotification.parsed.category}</div>
+              <div style={{ fontSize: '10px', color: '#94a3b8' }}>Estratto Automaticamente:</div>
+              <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#fff' }}>{simulatedNotification.parsed.merchant}</div>
+              <div style={{ fontSize: '11px', color: '#34d399' }}>{simulatedNotification.parsed.category}</div>
             </div>
-            <div className="text-right">
-              <div className={`text-base font-extrabold ${simulatedNotification.parsed.amount < 0 ? 'text-slate-100' : 'text-emerald-400'}`}>
-                {simulatedNotification.parsed.amount > 0 ? '+' : ''}{simulatedNotification.parsed.amount.toFixed(2)} €
-              </div>
+            <div style={{ fontSize: '16px', fontWeight: 'bold', color: simulatedNotification.parsed.amount < 0 ? '#fff' : '#34d399' }}>
+              {simulatedNotification.parsed.amount > 0 ? '+' : ''}{simulatedNotification.parsed.amount.toFixed(2)} €
             </div>
           </div>
-          <div className="flex gap-2">
+          <div style={{ display: 'flex', gap: '8px' }}>
             <button 
               onClick={confirmNotificationTransaction}
-              className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all">
-              <Check className="w-4 h-4" /> Conferma & Registra
+              style={{ flex: 1, backgroundColor: '#10b981', color: '#020617', fontWeight: 'bold', padding: '8px', borderRadius: '10px', fontSize: '12px', border: 'none', cursor: 'pointer' }}>
+              ✓ Conferma & Registra
             </button>
             <button 
               onClick={() => setSimulatedNotification(null)}
-              className="px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs">
+              style={{ padding: '8px 12px', backgroundColor: '#1e293b', color: '#cbd5e1', borderRadius: '10px', fontSize: '12px', border: 'none', cursor: 'pointer' }}>
               Ignora
             </button>
           </div>
         </div>
       )}
 
-      {/* TOP HEADER */}
-      <header className="p-4 pt-6 border-b border-slate-800/80 bg-slate-950/90 sticky top-0 z-30 backdrop-blur-md flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 shadow-lg shadow-emerald-500/20">
-            <Zap className="w-5 h-5 fill-slate-950" />
+      {/* HEADER */}
+      <header style={{ padding: '16px', borderBottom: '1px solid #1e293b', backgroundColor: '#020617e6', position: 'sticky', top: 0, zIndex: 30, backdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #10b981, #14b8a6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
+            ⚡
           </div>
           <div>
-            <h1 className="text-base font-bold tracking-tight text-white flex items-center gap-1.5">
+            <h1 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
               FinAuto AI
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-md border border-emerald-500/30">Auto-Log</span>
+              <span style={{ fontSize: '10px', backgroundColor: '#10b98120', color: '#34d399', padding: '2px 6px', borderRadius: '4px', border: '1px solid #10b98140' }}>Auto-Log</span>
             </h1>
-            <p className="text-[11px] text-slate-400">Zero Inserimento Manuale</p>
+            <p style={{ fontSize: '11px', color: '#94a3b8', margin: 0 }}>Zero Inserimento Manuale</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setHideBalances(!hideBalances)} 
-            className="p-2 text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 rounded-xl transition-all">
-            {hideBalances ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </button>
-          <div className="p-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs font-medium text-emerald-400 flex items-center gap-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="text-[10px]">Locale</span>
-          </div>
-        </div>
+        <button 
+          onClick={() => setHideBalances(!hideBalances)} 
+          style={{ padding: '8px', backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', color: '#94a3b8', cursor: 'pointer' }}>
+          {hideBalances ? '🔒' : '👁️'}
+        </button>
       </header>
 
-      {/* MAIN CONTAINER CONTENT BASED ON ACTIVE TAB */}
-      <main className="p-4 space-y-5">
+      {/* CONTENUTO SCHEDE */}
+      <main style={{ padding: '16px' }}>
 
-        {/* TAB 1: OVERVIEW & INTELLIGENCE */}
+        {/* TAB 1: OVERVIEW */}
         {activeTab === 'overview' && (
-          <>
-            {/* MAIN BALANCE CARD */}
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/40 p-5 border border-slate-800 shadow-xl">
-              <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-                <Wallet className="w-32 h-32 text-emerald-400" />
-              </div>
-              
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-medium text-slate-400">Patrimonio Totale</span>
-                <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700">
-                  Ottobre 2026
-                </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* SALDO CARD */}
+            <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #064e3b30 100%)', borderRadius: '24px', padding: '20px', border: '1px solid #1e293b', boxShadow: '0 10px 20px rgba(0,0,0,0.4)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ fontSize: '12px', color: '#94a3b8' }}>Patrimonio Totale</span>
+                <span style={{ fontSize: '11px', backgroundColor: '#1e293b', color: '#cbd5e1', padding: '2px 8px', borderRadius: '12px' }}>Ottobre 2026</span>
               </div>
 
-              <div className="text-3xl font-extrabold text-white tracking-tight mb-4">
+              <div style={{ fontSize: '32px', fontWeight: '800', color: '#fff', marginBottom: '16px' }}>
                 {hideBalances ? '•••••• €' : `${currentBalance.toFixed(2)} €`}
               </div>
 
-              {/* INCOME / EXPENSE SUMMARY */}
-              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-800/80">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    <ArrowDownRight className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-slate-400">Entrate</div>
-                    <div className="text-sm font-semibold text-emerald-400">
-                      {hideBalances ? '•••' : `+${totalIncome.toFixed(0)} €`}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                    <ArrowUpRight className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-slate-400">Uscite</div>
-                    <div className="text-sm font-semibold text-rose-400">
-                      {hideBalances ? '•••' : `-${totalExpenses.toFixed(0)} €`}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* PREDICTIVE CASH FLOW & RUNWAY WIDGET */}
-            <div className="bg-slate-900 rounded-2xl p-4 border border-slate-800">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-emerald-400" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">Stima di Fine Mese</h3>
-                </div>
-                <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                  Algoritmo Predittivo
-                </span>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-400">Saldo Previsto al 31 Ott:</span>
-                  <span className="font-bold text-slate-200">{hideBalances ? '•••' : `${projectEndBalance.toFixed(2)} €`}</span>
-                </div>
-                <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                  <div className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full w-[68%]" />
-                </div>
-                <p className="text-[11px] text-slate-400 pt-1">
-                  💡 In base alle tue spese ricorrenti, risparmierai circa <strong className="text-emerald-400">320€</strong> questo mese.
-                </p>
-              </div>
-            </div>
-
-            {/* QUICK AUTOMATION TRIGGER HERO */}
-            <div className="bg-gradient-to-r from-emerald-950/60 to-slate-900 border border-emerald-500/30 rounded-2xl p-4">
-              <div className="flex items-start justify-between mb-3">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', borderTop: '1px solid #1e293b', paddingTop: '12px' }}>
                 <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-                    <BellRing className="w-4 h-4 text-emerald-400 animate-pulse" />
-                    Simulatore Notifica Banca
-                  </h3>
-                  <p className="text-[11px] text-slate-400">
-                    Prova come l'app cattura gli SMS delle banche senza aprire il form manuale.
-                  </p>
+                  <div style={{ fontSize: '10px', color: '#94a3b8' }}>Entrate</div>
+                  <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#34d399' }}>
+                    {hideBalances ? '•••' : `+${totalIncome.toFixed(0)} €`}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '10px', color: '#94a3b8' }}>Uscite</div>
+                  <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#f87171' }}>
+                    {hideBalances ? '•••' : `-${totalExpenses.toFixed(0)} €`}
+                  </div>
                 </div>
               </div>
+            </div>
+
+            {/* STIMA PREDITTIVA */}
+            <div style={{ backgroundColor: '#0f172a', borderRadius: '16px', padding: '16px', border: '1px solid #1e293b' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#cbd5e1' }}>✨ Stima di Fine Mese</span>
+                <span style={{ fontSize: '10px', color: '#34d399', backgroundColor: '#10b98115', padding: '2px 6px', borderRadius: '10px' }}>Algoritmo Predittivo</span>
+              </div>
+              <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '8px' }}>
+                Saldo Previsto 31 Ott: <strong style={{ color: '#fff' }}>{hideBalances ? '•••' : `${projectEndBalance.toFixed(2)} €`}</strong>
+              </div>
+              <p style={{ fontSize: '11px', color: '#94a3b8', margin: 0 }}>
+                💡 In base alle tue spese ricorrenti, risparmierai circa <strong style={{ color: '#34d399' }}>320€</strong> questo mese.
+              </p>
+            </div>
+
+            {/* SIMULATORE SMS BANCA */}
+            <div style={{ background: 'linear-gradient(90deg, #064e3b40, #0f172a)', border: '1px solid #05966950', borderRadius: '16px', padding: '16px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 'bold', margin: '0 0 4px 0' }}>🔔 Simulatore Notifica Banca</h3>
+              <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 12px 0' }}>
+                Prova come l'app cattura gli SMS senza aprire il form manuale.
+              </p>
               <button 
                 onClick={handleSimulateBankSMS}
-                className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]">
-                <Smartphone className="w-4 h-4" /> Simula Arrivo SMS Bancario
+                style={{ width: '100%', backgroundColor: '#10b981', color: '#020617', fontWeight: 'bold', padding: '10px', borderRadius: '12px', fontSize: '12px', border: 'none', cursor: 'pointer' }}>
+                📱 Simula Arrivo SMS Bancario
               </button>
             </div>
 
-            {/* RECENT TRANSACTIONS HEADER & LIST */}
-            <div className="space-y-3 pt-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-200">Ultimi Movimenti Auto-Rilevati</h3>
-                <span className="text-xs text-slate-400">{filteredTransactions.length} transazioni</span>
-              </div>
-
-              {/* SEARCH & FILTER */}
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-500" />
-                  <input 
-                    type="text" 
-                    placeholder="Cerca esercente..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500/50"
-                  />
-                </div>
+            {/* LISTA TRANSAZIONI */}
+            <div>
+              <h3 style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '12px' }}>Ultimi Movimenti Auto-Rilevati</h3>
+              
+              {/* FILTRI */}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                <input 
+                  type="text" 
+                  placeholder="Cerca..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ flex: 1, backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '6px 10px', fontSize: '12px', color: '#fff' }}
+                />
                 <select 
                   value={filterCategory}
                   onChange={(e) => setFilterCategory(e.target.value)}
-                  className="bg-slate-900 border border-slate-800 rounded-xl px-2 py-1.5 text-xs text-slate-300 focus:outline-none">
-                  <option value="Tutti">Tutte le Categorie</option>
-                  {CATEGORIES.map(c => (
-                    <option key={c.name} value={c.name}>{c.name}</option>
-                  ))}
+                  style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '6px 10px', fontSize: '12px', color: '#fff' }}>
+                  <option value="Tutti">Tutti</option>
+                  {CATEGORIES.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
                 </select>
               </div>
 
-              {/* TRANSACTIONS CARDS */}
-              <div className="space-y-2">
-                {filteredTransactions.length === 0 ? (
-                  <div className="text-center py-8 bg-slate-900/50 rounded-2xl border border-slate-800">
-                    <p className="text-xs text-slate-500">Nessuna transazione trovata</p>
-                  </div>
-                ) : (
-                  filteredTransactions.map(tx => (
-                    <div 
-                      key={tx.id} 
-                      className="p-3 bg-slate-900 border border-slate-800/80 rounded-2xl flex items-center justify-between hover:border-slate-700 transition-all">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700/50 flex items-center justify-center text-lg shadow-inner">
-                          {tx.icon}
-                        </div>
-                        <div>
-                          <div className="text-xs font-bold text-slate-200">{tx.merchant}</div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">
-                              {tx.category}
-                            </span>
-                            <span className="text-[10px] text-slate-500">{tx.source}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="text-right">
-                        <div className={`text-xs font-bold ${tx.amount < 0 ? 'text-slate-200' : 'text-emerald-400'}`}>
-                          {tx.amount > 0 ? '+' : ''}{tx.amount.toFixed(2)} €
-                        </div>
-                        <div className="text-[10px] text-slate-500 mt-0.5">{tx.date}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {filteredTransactions.map(tx => (
+                  <div key={tx.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '20px' }}>{tx.icon}</span>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 'bold' }}>{tx.merchant}</div>
+                        <div style={{ fontSize: '10px', color: '#64748b' }}>{tx.category} • {tx.source}</div>
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* TAB 2: AUTOMATED INPUT HUB (Voice, Receipt OCR, CSV) */}
-        {activeTab === 'auto-import' && (
-          <div className="space-y-5">
-            <div className="text-center space-y-1">
-              <h2 className="text-lg font-bold text-white">Hub di Acquisizione Automatica</h2>
-              <p className="text-xs text-slate-400">Registra spese senza digitare nulla a mano</p>
-            </div>
-
-            {/* 1. VOICE INPUT SECTION */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
-                  <Mic className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-bold text-slate-200">1. Registrazione Vocale AI</h3>
-                  <p className="text-[10px] text-slate-400">Parla naturale, l'AI estrarrà cifra e categoria</p>
-                </div>
-              </div>
-
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80 text-center space-y-2">
-                <p className="text-xs text-slate-300 italic min-h-[24px]">
-                  {voiceTranscript || 'Tieni premuto e dici ad esempio: "Ho speso 18 euro per pizza con amici"'}
-                </p>
-                
-                <button 
-                  onClick={handleVoiceInputSim}
-                  disabled={isRecordingVoice || isProcessingAI}
-                  className={`w-full py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                    isRecordingVoice 
-                      ? 'bg-rose-500 text-white animate-pulse' 
-                      : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20'
-                  }`}>
-                  <Mic className="w-4 h-4" />
-                  {isRecordingVoice ? 'In Ascolto...' : isProcessingAI ? 'Elaborazione AI in corso...' : 'Parla Ora (Demo)'}
-                </button>
-              </div>
-            </div>
-
-            {/* 2. OCR SCANNER SECTION */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-teal-500/10 text-teal-400 rounded-xl border border-teal-500/20">
-                  <Camera className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-bold text-slate-200">2. Lettore Scontrini OCR</h3>
-                  <p className="text-[10px] text-slate-400">Scatta una foto o carica una ricevuta</p>
-                </div>
-              </div>
-
-              <div className="border-2 border-dashed border-slate-800 hover:border-teal-500/50 rounded-xl p-4 text-center transition-all bg-slate-950/50">
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handleFileUploadSim}
-                  id="receipt-upload"
-                  className="hidden" 
-                />
-                <label htmlFor="receipt-upload" className="cursor-pointer space-y-2 block">
-                  <UploadCloud className="w-8 h-8 text-slate-500 mx-auto" />
-                  <span className="text-xs text-slate-300 font-medium block">Carica o Scatta Foto Scontrino</span>
-                  <span className="text-[10px] text-slate-500 block">Estrapolazione automatica totale e negozio</span>
-                </label>
-              </div>
-
-              {receiptPreview && (
-                <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-center gap-3">
-                  <img src={receiptPreview} alt="Receipt" className="w-12 h-12 object-cover rounded-lg border border-slate-700" />
-                  <div className="text-xs">
-                    <div className="text-emerald-400 font-bold">Scontrino Riconosciuto!</div>
-                    <div className="text-slate-400 text-[10px]">Aggiunto Carrefour Express (-24.80€)</div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 3. BANK STATEMENT CSV IMPORT */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/20">
-                  <CreditCard className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-bold text-slate-200">3. Importa Estratto Conto CSV / PDF</h3>
-                  <p className="text-[10px] text-slate-400">Compatibile con UniCredit, Intesa, Revolut, N26</p>
-                </div>
-              </div>
-
-              <button 
-                onClick={() => {
-                  setIsProcessingAI(true);
-                  setTimeout(() => {
-                    const csvMockTx = [
-                      { id: 'tx-csv1', merchant: 'Lidl Supermercato', amount: -54.20, date: '2026-10-24', category: 'Spesa', source: 'Import CSV', verified: true, icon: '🛒' },
-                      { id: 'tx-csv2', merchant: 'ENI Station', amount: -40.00, date: '2026-10-23', category: 'Trasporti', source: 'Import CSV', verified: true, icon: '⛽' }
-                    ];
-                    setTransactions([...csvMockTx, ...transactions]);
-                    setIsProcessingAI(false);
-                  }, 1500);
-                }}
-                disabled={isProcessingAI}
-                className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all">
-                <RefreshCw className={`w-3.5 h-3.5 ${isProcessingAI ? 'animate-spin text-indigo-400' : ''}`} />
-                {isProcessingAI ? 'Parsing file in corso...' : 'Simula Importazione CSV Estratto Conto'}
-              </button>
-            </div>
-
-            {/* LOG OF CAPTURED SMS */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-2">
-              <h3 className="text-xs font-bold text-slate-300">Log Ultimi SMS/Notifiche Rilevate</h3>
-              {recentNotificationLog.length === 0 ? (
-                <p className="text-[11px] text-slate-500 italic">Nessun SMS simulato di recente.</p>
-              ) : (
-                <ul className="space-y-1.5">
-                  {recentNotificationLog.map((log, i) => (
-                    <li key={i} className="text-[10px] text-slate-400 bg-slate-950 p-2 rounded-lg border border-slate-800/50">
-                      {log}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: INTELLIGENCE & RECURRING SUBSCRIPTIONS */}
-        {activeTab === 'analytics' && (
-          <div className="space-y-5">
-            {/* FINANCIAL HEALTH SCORE */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
-              <div>
-                <div className="text-xs text-slate-400 font-medium">Punteggio Salute Finanziaria</div>
-                <div className="text-2xl font-extrabold text-white mt-1 flex items-center gap-2">
-                  {calculateHealthScore()} <span className="text-xs font-normal text-slate-400">/ 100</span>
-                </div>
-                <div className="text-[10px] text-emerald-400 mt-1">
-                  Stabilizzazione spese ottima
-                </div>
-              </div>
-              <div className="w-16 h-16 rounded-full border-4 border-emerald-500 flex items-center justify-center text-emerald-400 font-bold text-lg bg-emerald-500/10">
-                <Award className="w-8 h-8" />
-              </div>
-            </div>
-
-            {/* SUBSCRIPTION & HIDDEN COST RADAR */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-400" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-                    Radar Abbonamenti & Spese Nascoste
-                  </h3>
-                </div>
-                <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/20">
-                  Rilevate Variazioni
-                </span>
-              </div>
-
-              <div className="space-y-2">
-                {RECURRING_SUBSCRIPTIONS.map((sub, idx) => (
-                  <div key={idx} className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-bold text-slate-200">{sub.name}</div>
-                      <div className="text-[10px] text-slate-400">{sub.frequency}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs font-bold text-slate-200">{sub.amount.toFixed(2)} €</div>
-                      <div className={`text-[10px] font-semibold ${sub.type === 'warning' ? 'text-rose-400' : 'text-emerald-400'}`}>
-                        {sub.status}
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 'bold', color: tx.amount < 0 ? '#fff' : '#34d399' }}>
+                        {tx.amount > 0 ? '+' : ''}{tx.amount.toFixed(2)} €
                       </div>
+                      <div style={{ fontSize: '10px', color: '#64748b' }}>{tx.date}</div>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
+          </div>
+        )}
 
-            {/* BUDGET BY CATEGORY PROGRESS */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-                Budget per Categoria
-              </h3>
+        {/* TAB 2: AUTO-IMPORT */}
+        {activeTab === 'auto-import' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0, textAlign: 'center' }}>Hub Acquisizione Automatica</h2>
+            
+            {/* INPUT VOCALE */}
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '16px' }}>
+              <h3 style={{ fontSize: '13px', fontWeight: 'bold', margin: '0 0 8px 0' }}>1. Registrazione Vocale AI</h3>
+              <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 12px 0' }}>{voiceTranscript || 'Dici ad esempio: "Ho speso 18 euro per pizza con amici"'}</p>
+              <button 
+                onClick={handleVoiceInputSim}
+                disabled={isRecordingVoice || isProcessingAI}
+                style={{ width: '100%', padding: '12px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold', backgroundColor: isRecordingVoice ? '#ef4444' : '#10b981', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                🎤 {isRecordingVoice ? 'In Ascolto...' : isProcessingAI ? 'Elaborazione AI...' : 'Parla Ora (Demo)'}
+              </button>
+            </div>
 
-              <div className="space-y-3">
-                {CATEGORIES.map((cat) => {
-                  const spent = Math.abs(
-                    transactions
-                      .filter(t => t.category === cat.name && t.amount < 0)
-                      .reduce((acc, t) => acc + t.amount, 0)
-                  );
-                  const percentage = Math.min(Math.round((spent / cat.budget) * 100), 100);
+            {/* OCR SCONTRINI */}
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '16px' }}>
+              <h3 style={{ fontSize: '13px', fontWeight: 'bold', margin: '0 0 12px 0' }}>2. Lettore Scontrini OCR</h3>
+              <input type="file" accept="image/*" onChange={handleFileUploadSim} id="receipt-upload" style={{ display: 'none' }} />
+              <label htmlFor="receipt-upload" style={{ display: 'block', border: '2px dashed #334155', borderRadius: '12px', padding: '16px', textAlign: 'center', cursor: 'pointer', fontSize: '12px', color: '#94a3b8' }}>
+                📸 Carica o Scatta Foto Scontrino
+              </label>
+              {receiptPreview && (
+                <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <img src={receiptPreview} alt="Receipt" style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }} />
+                  <span style={{ fontSize: '12px', color: '#34d399' }}>Scontrino Aggiunto (-24.80€ Carrefour)</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
-                  return (
-                    <div key={cat.name} className="space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-slate-300 font-medium">{cat.name}</span>
-                        <span className="text-slate-400">{spent.toFixed(0)}€ / {cat.budget}€</span>
-                      </div>
-                      <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
-                        <div 
-                          className="h-full rounded-full transition-all duration-500" 
-                          style={{ 
-                            width: `${percentage}%`,
-                            backgroundColor: cat.color 
-                          }} 
-                        />
-                      </div>
+        {/* TAB 3: ANALYTICS */}
+        {activeTab === 'analytics' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: '12px', color: '#94a3b8' }}>Salute Finanziaria</div>
+                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#fff' }}>{calculateHealthScore()} / 100</div>
+              </div>
+              <div style={{ fontSize: '28px' }}>🏆</div>
+            </div>
+
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '16px' }}>
+              <h3 style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '12px' }}>Budget Categorie</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {CATEGORIES.map(cat => (
+                  <div key={cat.name} style={{ fontSize: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span>{cat.name}</span>
+                      <span style={{ color: '#94a3b8' }}>{cat.budget}€</span>
                     </div>
-                  );
-                })}
+                    <div style={{ width: '100%', height: '6px', backgroundColor: '#020617', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ width: '45%', height: '100%', backgroundColor: cat.color }} />
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 4: SETTINGS & LOCAL STORAGE */}
+        {/* TAB 4: SETTINGS */}
         {activeTab === 'settings' && (
-          <div className="space-y-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
-              <h3 className="text-xs font-bold text-slate-200">Privacy & Dati Locali</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                I tuoi dati bancari non lasciano mai questo dispositivo. Tutto è salvato in locale nel browser via <code className="text-emerald-400 bg-slate-950 px-1 py-0.5 rounded">LocalStorage</code>.
-              </p>
-              
-              <button 
-                onClick={() => {
-                  if (window.confirm('Vuoi davvero ripristinare i dati iniziali?')) {
-                    localStorage.removeItem('fin_smart_transactions');
-                    setTransactions(INITIAL_TRANSACTIONS);
-                  }
-                }}
-                className="w-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
-                <Trash2 className="w-4 h-4" /> Reset Dati Iniziali Demo
-              </button>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-2">
-              <h3 className="text-xs font-bold text-slate-200">Piattaforme Supportate per Notification Listener</h3>
-              <div className="grid grid-cols-2 gap-2 text-xs text-slate-300 pt-2">
-                <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">🟢 UniCredit Mobile</div>
-                <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">🟢 Intesa Sanpaolo</div>
-                <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">🟢 Revolut App</div>
-                <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">🟢 N26 Smart Alert</div>
-                <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">🟢 PayPal App</div>
-                <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">🟢 Apple Pay Push</div>
-              </div>
-            </div>
+          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '16px' }}>
+            <h3 style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '8px' }}>Privacy Locale</h3>
+            <p style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '16px' }}>Tutti i dati rimangono sul tuo dispositivo (LocalStorage).</p>
+            <button 
+              onClick={() => {
+                if (window.confirm('Reset dei dati?')) {
+                  localStorage.removeItem('fin_smart_transactions');
+                  setTransactions(INITIAL_TRANSACTIONS);
+                }
+              }}
+              style={{ width: '100%', backgroundColor: '#ef444420', color: '#f87171', border: '1px solid #ef444440', padding: '10px', borderRadius: '10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+              🗑️ Reset Dati Iniziali Demo
+            </button>
           </div>
         )}
 
       </main>
 
-      {/* BOTTOM NAVIGATION BAR FOR MOBILE THUMB USAGE */}
-      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-slate-950/95 border-t border-slate-800/80 p-2 backdrop-blur-md z-40">
-        <div className="grid grid-cols-4 gap-1">
-          <button 
-            onClick={() => setActiveTab('overview')}
-            className={`flex flex-col items-center gap-1 py-2 rounded-xl transition-all ${
-              activeTab === 'overview' ? 'text-emerald-400 bg-emerald-500/10 font-bold' : 'text-slate-500 hover:text-slate-300'
-            }`}>
-            <Wallet className="w-5 h-5" />
-            <span className="text-[10px]">Home</span>
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('auto-import')}
-            className={`flex flex-col items-center gap-1 py-2 rounded-xl transition-all ${
-              activeTab === 'auto-import' ? 'text-emerald-400 bg-emerald-500/10 font-bold' : 'text-slate-500 hover:text-slate-300'
-            }`}>
-            <Zap className="w-5 h-5" />
-            <span className="text-[10px]">Auto-Input</span>
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('analytics')}
-            className={`flex flex-col items-center gap-1 py-2 rounded-xl transition-all ${
-              activeTab === 'analytics' ? 'text-emerald-400 bg-emerald-500/10 font-bold' : 'text-slate-500 hover:text-slate-300'
-            }`}>
-            <TrendingUp className="w-5 h-5" />
-            <span className="text-[10px]">Analisi</span>
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('settings')}
-            className={`flex flex-col items-center gap-1 py-2 rounded-xl transition-all ${
-              activeTab === 'settings' ? 'text-emerald-400 bg-emerald-500/10 font-bold' : 'text-slate-500 hover:text-slate-300'
-            }`}>
-            <Sliders className="w-5 h-5" />
-            <span className="text-[10px]">Impostazioni</span>
-          </button>
-        </div>
+      {/* NAVBAR MOBILE IN BASSO */}
+      <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: '450px', margin: '0 auto', backgroundColor: '#020617f0', borderTop: '1px solid #1e293b', padding: '8px', backdropFilter: 'blur(8px)', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', zIndex: 40 }}>
+        <button onClick={() => setActiveTab('overview')} style={{ background: 'none', border: 'none', color: activeTab === 'overview' ? '#34d399' : '#64748b', fontSize: '11px', padding: '6px', cursor: 'pointer' }}>
+          🏠<br/>Home
+        </button>
+        <button onClick={() => setActiveTab('auto-import')} style={{ background: 'none', border: 'none', color: activeTab === 'auto-import' ? '#34d399' : '#64748b', fontSize: '11px', padding: '6px', cursor: 'pointer' }}>
+          ⚡<br/>Auto-Input
+        </button>
+        <button onClick={() => setActiveTab('analytics')} style={{ background: 'none', border: 'none', color: activeTab === 'analytics' ? '#34d399' : '#64748b', fontSize: '11px', padding: '6px', cursor: 'pointer' }}>
+          📊<br/>Analisi
+        </button>
+        <button onClick={() => setActiveTab('settings')} style={{ background: 'none', border: 'none', color: activeTab === 'settings' ? '#34d399' : '#64748b', fontSize: '11px', padding: '6px', cursor: 'pointer' }}>
+          ⚙️<br/>Opzioni
+        </button>
       </nav>
 
     </div>
