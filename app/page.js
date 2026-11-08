@@ -8,8 +8,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tutti');
-
-  const monthlyBudget = 1500;
+  const [monthlyBudget, setMonthlyBudget] = useState(1500);
+  const [simulating, setSimulating] = useState(false);
 
   useEffect(() => {
     fetchTransactions();
@@ -28,6 +28,29 @@ export default function Home() {
     setLoading(false);
   };
 
+  const handleSimulateWebhook = async () => {
+    setSimulating(true);
+    try {
+      const res = await fetch('/api/webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          merchant: 'Esselunga',
+          amount: 34.20,
+          category: 'Spesa',
+          date: new Date().toISOString().split('T')[0],
+          source: 'Simulatore App'
+        })
+      });
+      if (res.ok) {
+        await fetchTransactions();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setSimulating(false);
+  };
+
   // Calcoli finanziari
   const entrate = transactions
     .filter(t => t.category === 'Entrate')
@@ -39,11 +62,17 @@ export default function Home() {
 
   const patrimonioTotale = 2168.02 + entrate - uscite;
   const safeToSpend = Math.max(0, monthlyBudget - uscite);
+  const healthScore = Math.max(0, Math.min(100, Math.round(100 - (uscite / monthlyBudget) * 100)));
 
   const filteredTransactions = transactions.filter(t => {
     const matchesSearch = t.merchant.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCat = selectedCategory === 'Tutti' || t.category === selectedCategory;
     return matchesSearch && matchesCat;
+  });
+
+  const categoriesMap = {};
+  transactions.filter(t => t.category !== 'Entrate').forEach(t => {
+    categoriesMap[t.category] = (categoriesMap[t.category] || 0) + Number(t.amount);
   });
 
   return (
@@ -65,139 +94,215 @@ export default function Home() {
             <p className="text-xs text-slate-400">Zero Inserimento Manuale</p>
           </div>
         </div>
-        <button className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400">
-          👁️
+        <button onClick={fetchTransactions} title="Ricarica dati" className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition">
+          🔄
         </button>
       </header>
 
       <main className="px-4 space-y-4 mt-2">
         
-        {/* Card Patrimonio Totale */}
-        <section className="bg-gradient-to-b from-[#111827] to-[#0f172a] p-5 rounded-3xl border border-slate-800/80 shadow-xl">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-xs font-bold text-slate-400 tracking-wider uppercase">Patrimonio Totale</span>
-            <span className="text-xs bg-slate-800/80 border border-slate-700/50 text-slate-300 px-3 py-1 rounded-full font-medium">
-              Novembre 2026
-            </span>
-          </div>
+        {/* TAB 1: HOME */}
+        {activeTab === 'home' && (
+          <>
+            <section className="bg-gradient-to-b from-[#111827] to-[#0f172a] p-5 rounded-3xl border border-slate-800/80 shadow-xl">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs font-bold text-slate-400 tracking-wider uppercase">Patrimonio Totale</span>
+                <span className="text-xs bg-slate-800/80 border border-slate-700/50 text-slate-300 px-3 py-1 rounded-full font-medium">
+                  Novembre 2026
+                </span>
+              </div>
 
-          <div className="text-3xl font-black tracking-tight text-white my-3">
-            {patrimonioTotale.toFixed(2)} €
-          </div>
+              <div className="text-3xl font-black tracking-tight text-white my-3">
+                {patrimonioTotale.toFixed(2)} €
+              </div>
 
-          <div className="pt-3 border-t border-slate-800/60 grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-xs text-slate-400 block mb-0.5">Entrate</span>
-              <span className="font-bold text-emerald-400">+{entrate.toFixed(0)} €</span>
-            </div>
-            <div>
-              <span className="text-xs text-slate-400 block mb-0.5">Uscite</span>
-              <span className="font-bold text-rose-400">-{uscite.toFixed(0)} €</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Card Stima di Fine Mese */}
-        <section className="bg-[#0f172a] p-4 rounded-3xl border border-slate-800/80">
-          <div className="flex justify-between items-center mb-2">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
-              <span className="text-amber-400">✨</span> Stima di Fine Mese
-            </div>
-            <span className="text-[10px] font-semibold bg-emerald-950/60 text-emerald-400 border border-emerald-900/50 px-2 py-0.5 rounded-full">
-              Algoritmo Predittivo
-            </span>
-          </div>
-          
-          <p className="text-sm font-semibold text-slate-200 mt-1">
-            Safe-to-Spend Rimanente: <span className="text-emerald-400 font-bold">{safeToSpend.toFixed(2)} €</span>
-          </p>
-
-          <div className="mt-2 text-xs text-slate-400 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/40 flex items-start gap-2">
-            <span>💡</span>
-            <span>In base alle tue spese attuali, il budget rimanente stimato viaggia a ritmo regolare.</span>
-          </div>
-        </section>
-
-        {/* Card Simulatore Notifica Banca */}
-        <section className="bg-[#0f172a] p-4 rounded-3xl border border-slate-800/80 space-y-3">
-          <div>
-            <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2">
-              🔔 Webhook Live Supabase
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Tutti i movimenti inviati dall'iPhone vengono salvati automaticamente nel database.
-            </p>
-          </div>
-
-          <button 
-            onClick={fetchTransactions}
-            className="w-full bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] transition text-slate-950 font-extrabold py-3 rounded-2xl flex items-center justify-center gap-2 text-sm shadow-lg shadow-emerald-500/20"
-          >
-            🔄 Aggiorna Dati Live
-          </button>
-        </section>
-
-        {/* Ultimi Movimenti */}
-        <section className="space-y-3 pt-2">
-          <h3 className="text-sm font-bold text-slate-300 tracking-wide">
-            Ultimi Movimenti Auto-Rilevati
-          </h3>
-
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Cerca..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-            />
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none"
-            >
-              <option value="Tutti">Tutti</option>
-              <option value="Spesa">Spesa</option>
-              <option value="Ristorazione">Ristorazione</option>
-              <option value="Shopping">Shopping</option>
-              <option value="Trasporti">Trasporti</option>
-            </select>
-          </div>
-
-          {loading ? (
-            <p className="text-xs text-slate-500 text-center py-6">Caricamento transazioni...</p>
-          ) : filteredTransactions.length === 0 ? (
-            <div className="bg-slate-900/50 rounded-2xl p-6 text-center border border-slate-800/40">
-              <p className="text-xs text-slate-400">Nessun movimento trovato</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {filteredTransactions.map((tx) => (
-                <div
-                  key={tx.id}
-                  className="bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800/80 flex justify-between items-center"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700/50 flex items-center justify-center text-sm">
-                      🛒
-                    </div>
-                    <div>
-                      <p className="font-bold text-sm text-slate-100">{tx.merchant}</p>
-                      <p className="text-[11px] text-slate-400">
-                        {tx.category} • {tx.source || 'iPhone'} • {tx.date}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className={`font-extrabold text-sm ${tx.category === 'Entrate' ? 'text-emerald-400' : 'text-slate-100'}`}>
-                      {tx.category === 'Entrate' ? '+' : '-'}{Number(tx.amount).toFixed(2)} €
-                    </p>
-                  </div>
+              <div className="pt-3 border-t border-slate-800/60 grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-xs text-slate-400 block mb-0.5">Entrate</span>
+                  <span className="font-bold text-emerald-400">+{entrate.toFixed(0)} €</span>
                 </div>
-              ))}
-            </div>
-          )}
-        </section>
+                <div>
+                  <span className="text-xs text-slate-400 block mb-0.5">Uscite</span>
+                  <span className="font-bold text-rose-400">-{uscite.toFixed(0)} €</span>
+                </div>
+              </div>
+            </section>
+
+            <section className="bg-[#0f172a] p-4 rounded-3xl border border-slate-800/80">
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+                  <span className="text-amber-400">✨</span> Stima di Fine Mese
+                </div>
+                <span className="text-[10px] font-semibold bg-emerald-950/60 text-emerald-400 border border-emerald-900/50 px-2 py-0.5 rounded-full">
+                  Algoritmo Predittivo
+                </span>
+              </div>
+              
+              <p className="text-sm font-semibold text-slate-200 mt-1">
+                Safe-to-Spend Rimanente: <span className="text-emerald-400 font-bold">{safeToSpend.toFixed(2)} €</span>
+              </p>
+
+              <div className="mt-2 text-xs text-slate-400 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/40 flex items-start gap-2">
+                <span>💡</span>
+                <span>In base alle tue spese attuali, il budget rimanente stimato viaggia a ritmo regolare.</span>
+              </div>
+            </section>
+
+            <section className="space-y-3 pt-2">
+              <h3 className="text-sm font-bold text-slate-300 tracking-wide">
+                Ultimi Movimenti Auto-Rilevati
+              </h3>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Cerca..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                />
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none"
+                >
+                  <option value="Tutti">Tutti</option>
+                  <option value="Spesa">Spesa</option>
+                  <option value="Ristorazione">Ristorazione</option>
+                  <option value="Shopping">Shopping</option>
+                  <option value="Trasporti">Trasporti</option>
+                </select>
+              </div>
+
+              {loading ? (
+                <p className="text-xs text-slate-500 text-center py-6">Caricamento transazioni...</p>
+              ) : filteredTransactions.length === 0 ? (
+                <div className="bg-slate-900/50 rounded-2xl p-6 text-center border border-slate-800/40">
+                  <p className="text-xs text-slate-400">Nessun movimento registrato.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredTransactions.map((tx) => (
+                    <div
+                      key={tx.id}
+                      className="bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800/80 flex justify-between items-center"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700/50 flex items-center justify-center text-sm">
+                          🛒
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm text-slate-100">{tx.merchant}</p>
+                          <p className="text-[11px] text-slate-400">
+                            {tx.category} • {tx.source || 'iPhone'} • {tx.date}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-extrabold text-sm ${tx.category === 'Entrate' ? 'text-emerald-400' : 'text-slate-100'}`}>
+                          {tx.category === 'Entrate' ? '+' : '-'}{Number(tx.amount).toFixed(2)} €
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </>
+        )}
+
+        {/* TAB 2: AUTO-INPUT */}
+        {activeTab === 'auto-input' && (
+          <div className="space-y-4">
+            <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-3">
+              <h2 className="font-extrabold text-base text-emerald-400 flex items-center gap-2">
+                ⚡ Integrazione iPhone Webhook
+              </h2>
+              <p className="text-xs text-slate-300">
+                URL del tuo Webhook attivo su Vercel per ricevere transazioni in automatico:
+              </p>
+              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] font-mono text-emerald-300 break-all select-all">
+                https://finanza-smart-w7fp.vercel.app/api/webhook
+              </div>
+            </section>
+
+            <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-3">
+              <h3 className="font-bold text-sm text-white">🧪 Simulatore Notifica Banca</h3>
+              <p className="text-xs text-slate-400">
+                Prova ad inviare una spesa di test direttamente nel database Supabase:
+              </p>
+              <button 
+                onClick={handleSimulateWebhook}
+                disabled={simulating}
+                className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-extrabold py-3 rounded-2xl flex items-center justify-center gap-2 text-xs shadow-lg shadow-emerald-500/20 transition cursor-pointer"
+              >
+                {simulating ? 'Invio in corso...' : '📲 Simula Arrivo Spesa (€ 34.20 Esselunga)'}
+              </button>
+            </section>
+          </div>
+        )}
+
+        {/* TAB 3: ANALISI */}
+        {activeTab === 'analisi' && (
+          <div className="space-y-4">
+            <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 flex justify-between items-center">
+              <div>
+                <span className="text-xs text-slate-400">Health Score Mensile</span>
+                <p className="text-2xl font-black text-emerald-400 mt-1">{healthScore} / 100</p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-xl text-emerald-400 font-bold">
+                📈
+              </div>
+            </section>
+
+            <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-3">
+              <h3 className="font-bold text-sm text-slate-200">Ripartizione Spese per Categoria</h3>
+              {Object.keys(categoriesMap).length === 0 ? (
+                <p className="text-xs text-slate-500">Nessuna spesa da analizzare.</p>
+              ) : (
+                <div className="space-y-2 pt-2">
+                  {Object.entries(categoriesMap).map(([cat, amount]) => (
+                    <div key={cat} className="flex justify-between items-center bg-slate-900/60 p-3 rounded-xl border border-slate-800/40">
+                      <span className="text-xs font-semibold text-slate-300">{cat}</span>
+                      <span className="text-xs font-bold text-rose-400">{amount.toFixed(2)} €</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+        )}
+
+        {/* TAB 4: OPZIONI */}
+        {activeTab === 'opzioni' && (
+          <div className="space-y-4">
+            <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-3">
+              <h3 className="font-bold text-sm text-slate-200">Impostazioni Budget</h3>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Budget Mensile (€)</label>
+                <input
+                  type="number"
+                  value={monthlyBudget}
+                  onChange={(e) => setMonthlyBudget(Number(e.target.value))}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-sm font-bold text-emerald-400 focus:outline-none"
+                />
+              </div>
+            </section>
+
+            <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-2">
+              <h3 className="font-bold text-sm text-slate-200">Stato Sistema</h3>
+              <div className="flex justify-between text-xs text-slate-400">
+                <span>Database Backend:</span>
+                <span className="text-emerald-400 font-bold">Supabase Connesso</span>
+              </div>
+              <div className="flex justify-between text-xs text-slate-400">
+                <span>Hosting:</span>
+                <span className="text-emerald-400 font-bold">Vercel Production</span>
+              </div>
+            </section>
+          </div>
+        )}
+
       </main>
 
       {/* Bottom Navigation Bar */}
