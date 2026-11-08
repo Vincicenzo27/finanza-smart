@@ -1,47 +1,49 @@
 import { NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { message_text, secret_key } = body;
+    let { merchant, amount, category, date, source } = body;
 
-    // Controllo di sicurezza
-    if (secret_key !== "MIA_PASSWORD_SEGRETA_123") {
-      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+    if (!merchant || !amount) {
+      return NextResponse.json(
+        { error: 'Merchant e Amount sono obbligatori' },
+        { status: 400 }
+      );
     }
 
-    if (!message_text) {
-      return NextResponse.json({ error: "Testo del messaggio mancante" }, { status: 400 });
+    // 1. Controlla se il negozio è presente in category_memory
+    const { data: memory } = await supabaseAdmin
+      .from('category_memory')
+      .select('preferred_category')
+      .eq('merchant_name', merchant.trim())
+      .maybeSingle();
+
+    if (memory && memory.preferred_category) {
+      category = memory.preferred_category;
     }
 
-    // Estrazione dell'importo (es. "14.50" o "14,50")
-    const amountMatch = message_text.match(/(\d+[\.,]\d{2})/);
-    const amount = amountMatch ? parseFloat(amountMatch[1].replace(',', '.')) : 0;
+    // 2. Inserisce la transazione nel database
+    const { data, error } = await supabaseAdmin
+      .from('transactions')
+      .insert([
+        {
+          merchant: merchant.trim(),
+          amount: parseFloat(amount),
+          category: category || 'Shopping',
+          date: date || new Date().toISOString().split('T')[0],
+          source: source || 'iPhone Shortcut',
+          verified: true
+        }
+      ])
+      .select();
 
-    // Estrazione del commerciante/negozio (ricerca semplice)
-    let merchant = "Spesa Automatica";
-    if (message_text.includes("presso ")) {
-      merchant = message_text.split("presso ")[1].split(" il")[0].split(" ")[0];
-    }
+    if (error) throw error;
 
-    const newTransaction = {
-      id: Date.now(),
-      merchant: merchant || "Transazione SMS",
-      amount: amount,
-      category: "Automatica",
-      date: new Date().toISOString().split('T')[0],
-      type: "expense",
-      raw_message: message_text
-    };
-
-    console.log("Nuova transazione ricevuta via SMS:", newTransaction);
-
-    return NextResponse.json({ 
-      success: true, 
-      data: newTransaction 
-    });
-
+    return NextResponse.json({ success: true, transaction: data[0] });
   } catch (error) {
-    return NextResponse.json({ error: "Errore durante l'elaborazione" }, { status: 500 });
+    console.error('Errore webhook:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
