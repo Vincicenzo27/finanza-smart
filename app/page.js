@@ -2,6 +2,21 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
+// Helper per assegnare icone in base alla categoria
+const getCategoryIcon = (category) => {
+  switch (category) {
+    case 'Spesa': return '🛒';
+    case 'Ristorazione': return '🍕';
+    case 'Trasporti': return '🚗';
+    case 'Shopping': return '🛍️';
+    case 'Utenze': return '💡';
+    case 'Salute': return '💊';
+    case 'Intrattenimento': return '🎬';
+    case 'Entrate': return '💰';
+    default: return '💳';
+  }
+};
+
 export default function Home() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10,6 +25,12 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState('Tutti');
   const [monthlyBudget, setMonthlyBudget] = useState(1500);
   const [simulating, setSimulating] = useState(false);
+
+  // Stato per la scheda Popup di Modifica Movimento
+  const [editingTx, setEditingTx] = useState(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editCategory, setEditCategory] = useState('Spesa');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     fetchTransactions();
@@ -49,6 +70,55 @@ export default function Home() {
       console.error(e);
     }
     setSimulating(false);
+  };
+
+  // Apertura popup di modifica
+  const openEditModal = (tx) => {
+    setEditingTx(tx);
+    setEditAmount(tx.amount.toString());
+    setEditCategory(tx.category || 'Spesa');
+  };
+
+  // Salvataggio modifica transazione + aggiornamento memoria AI
+  const handleSaveTransaction = async () => {
+    if (!editingTx) return;
+    setSavingEdit(true);
+
+    const updatedAmount = parseFloat(editAmount);
+
+    // 1. Aggiorna la transazione corrente
+    const { error: txError } = await supabase
+      .from('transactions')
+      .update({
+        amount: updatedAmount,
+        category: editCategory,
+        verified: true
+      })
+      .eq('id', editingTx.id);
+
+    // 2. Aggiorna la memoria del merchant (Auto-Apprendimento)
+    if (!txError && editingTx.merchant) {
+      await supabase
+        .from('category_memory')
+        .upsert(
+          { merchant_name: editingTx.merchant, preferred_category: editCategory },
+          { onConflict: 'merchant_name' }
+        );
+    }
+
+    setSavingEdit(false);
+    setEditingTx(null);
+    fetchTransactions();
+  };
+
+  // Elimina movimento
+  const handleDeleteTransaction = async () => {
+    if (!editingTx) return;
+    setSavingEdit(true);
+    await supabase.from('transactions').delete().eq('id', editingTx.id);
+    setSavingEdit(false);
+    setEditingTx(null);
+    fetchTransactions();
   };
 
   // Calcoli finanziari
@@ -171,6 +241,10 @@ export default function Home() {
                   <option value="Ristorazione">Ristorazione</option>
                   <option value="Shopping">Shopping</option>
                   <option value="Trasporti">Trasporti</option>
+                  <option value="Utenze">Utenze</option>
+                  <option value="Salute">Salute</option>
+                  <option value="Intrattenimento">Intrattenimento</option>
+                  <option value="Entrate">Entrate</option>
                 </select>
               </div>
 
@@ -185,21 +259,29 @@ export default function Home() {
                   {filteredTransactions.map((tx) => (
                     <div
                       key={tx.id}
-                      className="bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800/80 flex justify-between items-center"
+                      onClick={() => openEditModal(tx)}
+                      className="bg-slate-900/80 hover:bg-slate-800/60 transition cursor-pointer p-3.5 rounded-2xl border border-slate-800/80 flex justify-between items-center active:scale-[0.99]"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700/50 flex items-center justify-center text-sm">
-                          🛒
+                        <div className="w-10 h-10 rounded-2xl bg-slate-800 border border-slate-700/50 flex items-center justify-center text-lg shadow-inner">
+                          {getCategoryIcon(tx.category)}
                         </div>
                         <div>
-                          <p className="font-bold text-sm text-slate-100">{tx.merchant}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-sm text-slate-100">{tx.merchant}</p>
+                            {tx.verified && (
+                              <span className="text-[9px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 px-1.5 py-0.2 rounded">
+                                ✓
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[11px] text-slate-400">
-                            {tx.category} • {tx.source || 'iPhone'} • {tx.date}
+                            {tx.category || 'Generale'} • {tx.source || 'iPhone'} • {tx.date}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className={`font-extrabold text-sm ${tx.category === 'Entrate' ? 'text-emerald-400' : 'text-slate-100'}`}>
+                        <p className={`font-black text-sm ${tx.category === 'Entrate' ? 'text-emerald-400' : 'text-slate-100'}`}>
                           {tx.category === 'Entrate' ? '+' : '-'}{Number(tx.amount).toFixed(2)} €
                         </p>
                       </div>
@@ -263,7 +345,9 @@ export default function Home() {
                 <div className="space-y-2 pt-2">
                   {Object.entries(categoriesMap).map(([cat, amount]) => (
                     <div key={cat} className="flex justify-between items-center bg-slate-900/60 p-3 rounded-xl border border-slate-800/40">
-                      <span className="text-xs font-semibold text-slate-300">{cat}</span>
+                      <span className="text-xs font-semibold text-slate-300 flex items-center gap-2">
+                        <span>{getCategoryIcon(cat)}</span> {cat}
+                      </span>
                       <span className="text-xs font-bold text-rose-400">{amount.toFixed(2)} €</span>
                     </div>
                   ))}
@@ -304,6 +388,75 @@ export default function Home() {
         )}
 
       </main>
+
+      {/* MODAL POPUP DI MODIFICA MOVIMENTO */}
+      {editingTx && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 z-[100]">
+          <div className="bg-[#0f172a] border border-slate-800 w-full max-w-sm rounded-3xl p-5 space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-200">
+            <div className="flex justify-between items-center border-b border-slate-800/80 pb-3">
+              <div>
+                <h3 className="font-black text-base text-white">{editingTx.merchant}</h3>
+                <p className="text-[11px] text-slate-400">Modifica transazione e memoria AI</p>
+              </div>
+              <button 
+                onClick={() => setEditingTx(null)}
+                className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 text-sm hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-slate-400 font-semibold block mb-1">Importo (€)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-lg font-bold text-emerald-400 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 font-semibold block mb-1">Categoria</label>
+                <select
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 font-semibold focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="Spesa">🛒 Spesa</option>
+                  <option value="Ristorazione">🍕 Ristorazione</option>
+                  <option value="Trasporti">🚗 Trasporti</option>
+                  <option value="Shopping">🛍️ Shopping</option>
+                  <option value="Utenze">💡 Utenze</option>
+                  <option value="Salute">💊 Salute</option>
+                  <option value="Intrattenimento">🎬 Intrattenimento</option>
+                  <option value="Entrate">💰 Entrate</option>
+                  <option value="Altro">💳 Altro</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={handleDeleteTransaction}
+                disabled={savingEdit}
+                className="flex-1 bg-rose-950/60 border border-rose-900/60 hover:bg-rose-900/60 text-rose-300 text-xs font-bold py-3 rounded-2xl transition"
+              >
+                Elimina
+              </button>
+              <button
+                onClick={handleSaveTransaction}
+                disabled={savingEdit}
+                className="flex-[2] bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold py-3 rounded-2xl shadow-lg shadow-emerald-500/20 transition"
+              >
+                {savingEdit ? 'Salvataggio...' : 'Salva e Ricorda'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Navigation Bar */}
       <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#090d16]/95 backdrop-blur-md border-t border-slate-800/80 px-6 py-3 flex justify-between items-center z-50">
