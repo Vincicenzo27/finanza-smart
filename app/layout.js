@@ -1,29 +1,16 @@
-export const metadata = {
-  title: 'FinAuto AI',
-  description: 'Personal Finance Tracker',
-}
+import './globals.css';
 
-export const viewport = {
-  themeColor: '#090d16',
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  viewportFit: 'cover',
-}
+export const metadata = {
+  title: 'Finanza Smart',
+  description: 'Gestione finanziaria personale smart',
+};
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="it" style={{ backgroundColor: '#090d16' }}>
-      <body style={{ 
-        margin: 0, 
-        padding: 0, 
-        backgroundColor: '#090d16',
-        color: '#f8fafc',
-        overflowX: 'hidden'
-      }}>
+    <html lang="it">
+      <body className="bg-slate-950 text-white min-h-screen">
         {children}
       </body>
     </html>
-  )
+  );
 }
