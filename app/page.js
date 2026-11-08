@@ -121,7 +121,7 @@ export default function Home() {
     fetchTransactions();
   };
 
-  // Calcoli finanziari
+  // Calcoli finanziari dinamici
   const entrate = transactions
     .filter(t => t.category === 'Entrate')
     .reduce((acc, t) => acc + Number(t.amount), 0);
@@ -130,7 +130,8 @@ export default function Home() {
     .filter(t => t.category !== 'Entrate')
     .reduce((acc, t) => acc + Number(t.amount), 0);
 
-  const patrimonioTotale = 2168.02 + entrate - uscite;
+  // Il patrimonio ora parte da 0.00 e varia solo in base alle Entrate e Uscite reali
+  const patrimonioTotale = entrate - uscite;
   const safeToSpend = Math.max(0, monthlyBudget - uscite);
   const healthScore = Math.max(0, Math.min(100, Math.round(100 - (uscite / monthlyBudget) * 100)));
 
@@ -144,6 +145,10 @@ export default function Home() {
   transactions.filter(t => t.category !== 'Entrate').forEach(t => {
     categoriesMap[t.category] = (categoriesMap[t.category] || 0) + Number(t.amount);
   });
+
+  // Formattazione mese e anno correnti
+  const currentMonthYear = new Date().toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+  const formattedMonth = currentMonthYear.charAt(0).toUpperCase() + currentMonthYear.slice(1);
 
   return (
     <div className="min-h-screen bg-[#070b12] text-white font-sans pb-28 max-w-md mx-auto relative border-x border-slate-900/40">
@@ -178,7 +183,7 @@ export default function Home() {
               <div className="flex justify-between items-center mb-2">
                 <span className="text-xs font-bold text-slate-400 tracking-wider uppercase">Patrimonio Totale</span>
                 <span className="text-xs bg-slate-800/80 border border-slate-700/50 text-slate-300 px-3 py-1 rounded-full font-medium">
-                  Novembre 2026
+                  {formattedMonth}
                 </span>
               </div>
 
@@ -189,11 +194,11 @@ export default function Home() {
               <div className="pt-3 border-t border-slate-800/60 grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-xs text-slate-400 block mb-0.5">Entrate</span>
-                  <span className="font-bold text-emerald-400">+{entrate.toFixed(0)} €</span>
+                  <span className="font-bold text-emerald-400">+{entrate.toFixed(2)} €</span>
                 </div>
                 <div>
                   <span className="text-xs text-slate-400 block mb-0.5">Uscite</span>
-                  <span className="font-bold text-rose-400">-{uscite.toFixed(0)} €</span>
+                  <span className="font-bold text-rose-400">-{uscite.toFixed(2)} €</span>
                 </div>
               </div>
             </section>
