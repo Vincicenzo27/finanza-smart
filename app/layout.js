@@ -5,12 +5,16 @@ export const metadata = {
   description: 'Tracciamento Finanziario Smart',
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="it">
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-      </head>
       <body className="bg-[#070b12] text-white antialiased select-none">
         {children}
       </body>
