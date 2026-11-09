@@ -245,7 +245,7 @@ export default function Home() {
   if (loadingAuth) {
     return (
       <div className="min-h-screen bg-[#070b12] text-white flex items-center justify-center">
-        <p className="text-xs text-slate-400 animate-pulse">Caricamento FinAuto AI...</p>
+        <p className="text-xs text-slate-400 animate-pulse">Caricamento Finanza Smart...</p>
       </div>
     );
   }
@@ -357,6 +357,15 @@ export default function Home() {
     categoriesMap[t.category] = (categoriesMap[t.category] || 0) + Number(t.amount);
   });
 
+  let topCategory = 'Nessuna';
+  let topCategoryAmount = 0;
+  Object.entries(categoriesMap).forEach(([cat, amt]) => {
+    if (amt > topCategoryAmount) {
+      topCategoryAmount = amt;
+      topCategory = cat;
+    }
+  });
+
   const startLabel = cycleStart.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
   const endLabel = cycleEnd.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
 
@@ -371,7 +380,7 @@ export default function Home() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="font-extrabold text-lg tracking-tight text-white">FinAuto AI</h1>
+              <h1 className="font-extrabold text-lg tracking-tight text-white">Finanza Smart</h1>
               <span className="text-[10px] font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-800/50 px-2 py-0.5 rounded-full">
                 Multi-User
               </span>
@@ -724,10 +733,26 @@ export default function Home() {
                 </div>
               )}
             </section>
+
+            {/* Smart Summary Insight */}
+            <section className="bg-[#0f172a] p-4 rounded-3xl border border-slate-800 space-y-2">
+              <h4 className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                💡 AI Financial Insight
+              </h4>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                {topCategory !== 'Nessuna' ? (
+                  <>
+                    La tua voce di spesa principale in questo ciclo è <strong className="text-emerald-400">{topCategory}</strong> ({topCategoryAmount.toFixed(2)} €). {projectedTotalSpend > budgetNum ? 'Ridurre questa voce ti aiuterebbe a rientrare nel budget.' : 'Ottimo lavoro nel mantenere sotto controllo le uscite!'}
+                  </>
+                ) : (
+                  'Registra la tua prima spesa per sbloccare i suggerimenti personalizzati sull\'andamento finanziario.'
+                )}
+              </p>
+            </section>
           </div>
         )}
 
-        {/* TAB 4: OPZIONI (INPUT CORRETTI PER CANCELLAZIONE CIFIRES) */}
+        {/* TAB 4: OPZIONI */}
         {activeTab === 'opzioni' && (
           <div className="space-y-4">
             <section className="bg-gradient-to-b from-[#111827] to-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-3 shadow-xl">
