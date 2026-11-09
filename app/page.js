@@ -26,6 +26,7 @@ const formatDateStr = (d) => {
 export default function Home() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [dbStatus, setDbStatus] = useState('connected'); // 'connected' | 'loading' | 'error'
   const [activeTab, setActiveTab] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tutti');
@@ -45,13 +46,19 @@ export default function Home() {
 
   const fetchTransactions = async () => {
     setLoading(true);
+    setDbStatus('loading');
+    
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
       .order('date', { ascending: false });
 
-    if (!error && data) {
-      setTransactions(data);
+    if (error) {
+      console.error(error);
+      setDbStatus('error');
+    } else {
+      setTransactions(data || []);
+      setDbStatus('connected');
     }
     setLoading(false);
   };
@@ -75,6 +82,7 @@ export default function Home() {
       }
     } catch (e) {
       console.error(e);
+      setDbStatus('error');
     }
     setSimulating(false);
   };
@@ -210,7 +218,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#070b12] text-white font-sans pb-28 max-w-md mx-auto relative border-x border-slate-900/40">
       
-      {/* Header Top Pulito */}
+      {/* Header Top con Spia Stato Dinamica */}
       <header className="p-4 flex justify-between items-center pt-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold shadow-lg shadow-emerald-500/10">
@@ -226,7 +234,17 @@ export default function Home() {
             <p className="text-xs text-slate-400">Zero Inserimento Manuale</p>
           </div>
         </div>
-        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="Database Connesso"></div>
+
+        {/* Indicatore Stato Connessione */}
+        {dbStatus === 'connected' && (
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="Database Connesso e Sincronizzato"></div>
+        )}
+        {dbStatus === 'loading' && (
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" title="Sincronizzazione in corso..."></div>
+        )}
+        {dbStatus === 'error' && (
+          <div className="w-2.5 h-2.5 rounded-full bg-rose-500" title="Errore Connessione Supabase"></div>
+        )}
       </header>
 
       <main className="px-4 space-y-4 mt-2">
