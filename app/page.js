@@ -71,7 +71,7 @@ export default function Home() {
     setLoading(true);
     setDbStatus('loading');
     
-    // Ordine: prima per Data (decrescente), poi per ID (decrescente) -> l'ultimo inserito va SEMPRE in alto
+    // Ordine: dal più recente al meno recente (ID decrescente)
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
@@ -111,7 +111,7 @@ export default function Home() {
     setSavingManual(false);
 
     if (!error) {
-      setManualSuccessMsg('✅ Movimento registrato con successo!');
+      setManualSuccessMsg('✅ Movimento registrato!');
       setManualAmount('');
       setManualMerchant('');
       setTimeout(() => {
@@ -483,7 +483,7 @@ export default function Home() {
                     <select
                       value={manualCategory}
                       onChange={(e) => setManualCategory(e.target.value)}
-                      className="w-full box-border bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] text-slate-200 font-semibold focus:outline-none focus:border-emerald-500 appearance-none"
+                      className="w-full box-border bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] text-slate-200 font-semibold focus:outline-none focus:border-emerald-500"
                     >
                       <option value="Spesa">🛒 Spesa</option>
                       <option value="Ristorazione">🍕 Ristorazione</option>
@@ -499,14 +499,12 @@ export default function Home() {
 
                 <div>
                   <label className="text-xs text-slate-400 font-semibold block mb-1">Data</label>
-                  <div className="w-full bg-slate-950 border border-slate-800 rounded-xl overflow-hidden">
-                    <input
-                      type="date"
-                      value={manualDate}
-                      onChange={(e) => setManualDate(e.target.value)}
-                      className="w-full bg-transparent p-3 text-[16px] text-slate-200 focus:outline-none appearance-none"
-                    />
-                  </div>
+                  <input
+                    type="date"
+                    value={manualDate}
+                    onChange={(e) => setManualDate(e.target.value)}
+                    className="w-full box-border bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] text-slate-200 focus:outline-none focus:border-emerald-500"
+                  />
                 </div>
 
                 <button
