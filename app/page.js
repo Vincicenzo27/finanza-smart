@@ -34,7 +34,7 @@ export default function Home() {
   const [payday, setPayday] = useState(6);
 
   // Form Manual Inserimento Movimento
-  const [manualType, setManualType] = useState('uscita'); // 'uscita' | 'entrata'
+  const [manualType, setManualType] = useState('uscita');
   const [manualAmount, setManualAmount] = useState('');
   const [manualMerchant, setManualMerchant] = useState('');
   const [manualCategory, setManualCategory] = useState('Spesa');
@@ -71,10 +71,12 @@ export default function Home() {
     setLoading(true);
     setDbStatus('loading');
     
+    // Ordine: prima per Data (decrescente), poi per ID (decrescente) -> l'ultimo inserito va SEMPRE in alto
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
-      .order('date', { ascending: false });
+      .order('date', { ascending: false })
+      .order('id', { ascending: false });
 
     if (error) {
       console.error('Fetch error:', error);
@@ -115,7 +117,7 @@ export default function Home() {
       setTimeout(() => {
         setManualSuccessMsg('');
         setActiveTab('home');
-      }, 1200);
+      }, 1000);
     } else {
       alert(`Errore: ${error.message}`);
     }
@@ -346,12 +348,12 @@ export default function Home() {
                   placeholder="Cerca..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-[16px] text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                 />
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none"
+                  className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-[16px] text-slate-300 focus:outline-none"
                 >
                   <option value="Tutti">Tutti</option>
                   <option value="Spesa">Spesa</option>
@@ -416,7 +418,7 @@ export default function Home() {
         {/* TAB 2: INSERISCI MANUALE */}
         {activeTab === 'inserisci' && (
           <div className="space-y-4">
-            <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-4">
+            <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-4 shadow-xl">
               <h2 className="font-extrabold text-base text-white flex items-center gap-2">
                 ➕ Nuovo Movimento
               </h2>
@@ -457,7 +459,7 @@ export default function Home() {
                     required
                     value={manualAmount}
                     onChange={(e) => setManualAmount(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-lg font-bold text-emerald-400 focus:outline-none focus:border-emerald-500"
+                    className="w-full box-border bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] font-bold text-emerald-400 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
 
@@ -471,7 +473,7 @@ export default function Home() {
                     required
                     value={manualMerchant}
                     onChange={(e) => setManualMerchant(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500"
+                    className="w-full box-border bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
 
@@ -481,7 +483,7 @@ export default function Home() {
                     <select
                       value={manualCategory}
                       onChange={(e) => setManualCategory(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 font-semibold focus:outline-none focus:border-emerald-500"
+                      className="w-full box-border bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] text-slate-200 font-semibold focus:outline-none focus:border-emerald-500 appearance-none"
                     >
                       <option value="Spesa">🛒 Spesa</option>
                       <option value="Ristorazione">🍕 Ristorazione</option>
@@ -497,18 +499,20 @@ export default function Home() {
 
                 <div>
                   <label className="text-xs text-slate-400 font-semibold block mb-1">Data</label>
-                  <input
-                    type="date"
-                    value={manualDate}
-                    onChange={(e) => setManualDate(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-300 focus:outline-none focus:border-emerald-500"
-                  />
+                  <div className="w-full bg-slate-950 border border-slate-800 rounded-xl overflow-hidden">
+                    <input
+                      type="date"
+                      value={manualDate}
+                      onChange={(e) => setManualDate(e.target.value)}
+                      className="w-full bg-transparent p-3 text-[16px] text-slate-200 focus:outline-none appearance-none"
+                    />
+                  </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={savingManual}
-                  className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95 mt-2"
+                  className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95 mt-4"
                 >
                   {savingManual ? 'Registrazione in corso...' : '💾 Registra Movimento'}
                 </button>
@@ -570,7 +574,7 @@ export default function Home() {
                   max="31"
                   value={payday}
                   onChange={(e) => setPayday(Math.max(1, Math.min(31, Number(e.target.value))))}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-sm font-bold text-emerald-400 focus:outline-none"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-[16px] font-bold text-emerald-400 focus:outline-none"
                 />
                 <p className="text-[10px] text-slate-500 mt-1">Imposta il giorno in cui accrediti lo stipendio (es. 6).</p>
               </div>
@@ -581,7 +585,7 @@ export default function Home() {
                   type="number"
                   value={monthlyBudget}
                   onChange={(e) => setMonthlyBudget(Number(e.target.value))}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-sm font-bold text-emerald-400 focus:outline-none"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-[16px] font-bold text-emerald-400 focus:outline-none"
                 />
               </div>
             </section>
@@ -627,7 +631,7 @@ export default function Home() {
                   step="0.01"
                   value={editAmount}
                   onChange={(e) => setEditAmount(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-lg font-bold text-emerald-400 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] font-bold text-emerald-400 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
@@ -636,7 +640,7 @@ export default function Home() {
                 <select
                   value={editCategory}
                   onChange={(e) => setEditCategory(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 font-semibold focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] text-slate-200 font-semibold focus:outline-none focus:border-emerald-500"
                 >
                   <option value="Spesa">🛒 Spesa</option>
                   <option value="Ristorazione">🍕 Ristorazione</option>
