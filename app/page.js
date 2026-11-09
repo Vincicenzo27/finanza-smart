@@ -16,6 +16,13 @@ const getCategoryIcon = (category) => {
   }
 };
 
+const formatDateStr = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 export default function Home() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,9 +30,10 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tutti');
   const [monthlyBudget, setMonthlyBudget] = useState(1500);
+  const [payday, setPayday] = useState(6); // Giorno del mese di stipendio / inizio ciclo
   const [simulating, setSimulating] = useState(false);
 
-  // Popup Modifica
+  // Popup Modifica Movimento
   const [editingTx, setEditingTx] = useState(null);
   const [editAmount, setEditAmount] = useState('');
   const [editCategory, setEditCategory] = useState('Spesa');
@@ -115,40 +123,77 @@ export default function Home() {
     fetchTransactions();
   };
 
-  // Calcoli Finanziari Reali e Dinamici
-  const entrate = transactions
+  // CALCOLO DEL CICLO STIPENDIALE PERSONALIZZATO (es. dal 6 al 5)
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const currentDay = now.getDate();
+
+  let cycleStart, cycleEnd;
+  if (currentDay >= payday) {
+    cycleStart = new Date(currentYear, currentMonth, payday);
+    cycleEnd = new Date(currentYear, currentMonth + 1, payday - 1);
+  } else {
+    cycleStart = new Date(currentYear, currentMonth - 1, payday);
+    cycleEnd = new Date(currentYear, currentMonth, payday - 1);
+  }
+
+  const strCycleStart = formatDateStr(cycleStart);
+  const strCycleEnd = formatDateStr(cycleEnd);
+
+  const totalCycleDays = Math.round((cycleEnd - cycleStart) / (1000 * 60 * 60 * 24)) + 1;
+  const currentCycleDay = Math.round((now - cycleStart) / (1000 * 60 * 60 * 24)) + 1;
+  const remainingCycleDays = Math.max(1, totalCycleDays - currentCycleDay + 1);
+
+  // Transazioni complessive e transazioni del ciclo corrente
+  const totalEntrate = transactions
     .filter(t => t.category === 'Entrate')
     .reduce((acc, t) => acc + Number(t.amount), 0);
 
-  const uscite = transactions
+  const totalUscite = transactions
     .filter(t => t.category !== 'Entrate')
     .reduce((acc, t) => acc + Number(t.amount), 0);
 
-  const patrimonioTotale = entrate - uscite;
-  const safeToSpend = Math.max(0, monthlyBudget - uscite);
+  const patrimonioTotale = totalEntrate - totalUscite;
 
-  // ALGORITMO PREDITTIVO DI FINE MESE
-  const now = new Date();
-  const currentDay = now.getDate();
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const remainingDays = Math.max(1, daysInMonth - currentDay + 1);
+  const cycleTransactions = transactions.filter(t => t.date >= strCycleStart && t.date <= strCycleEnd);
+  
+  const cycleEntrate = cycleTransactions
+    .filter(t => t.category === 'Entrate')
+    .reduce((acc, t) => acc + Number(t.amount), 0);
 
-  // Spesa media al giorno finora
-  const dailyAverageSpend = currentDay > 0 ? uscite / currentDay : 0;
-  // Proiezione uscite a fine mese
-  const projectedTotalSpend = uscite + (dailyAverageSpend * (daysInMonth - currentDay));
-  // Limite massimo consigliato al giorno per non sforare
-  const dailyBudgetAllowance = safeToSpend / remainingDays;
+  const cycleUscite = cycleTransactions
+    .filter(t => t.category !== 'Entrate')
+    .reduce((acc, t) => acc + Number(t.amount), 0);
 
-  // Stato Ritmo di Spesa
-  let paceStatus = { label: 'In linea', color: 'text-emerald-400 bg-emerald-950/60 border-emerald-900/50', msg: `Puoi spendere massimo ${dailyBudgetAllowance.toFixed(2)} €/giorno.` };
+  const safeToSpend = Math.max(0, monthlyBudget - cycleUscite);
+
+  // Algoritmo Predittivo sul Ciclo
+  const dailyAverageSpend = currentCycleDay > 0 ? cycleUscite / currentCycleDay : 0;
+  const projectedTotalSpend = cycleUscite + (dailyAverageSpend * (totalCycleDays - currentCycleDay));
+  const dailyBudgetAllowance = safeToSpend / remainingCycleDays;
+
+  let paceStatus = { 
+    label: 'In linea', 
+    color: 'text-emerald-400 bg-emerald-950/60 border-emerald-900/50', 
+    msg: `Puoi spendere massimo ${dailyBudgetAllowance.toFixed(2)} €/giorno.` 
+  };
+  
   if (projectedTotalSpend > monthlyBudget) {
-    paceStatus = { label: 'Ritmo Elevato', color: 'text-rose-400 bg-rose-950/60 border-rose-900/50', msg: `Attento! A questo ritmo sformerai il budget di ${(projectedTotalSpend - monthlyBudget).toFixed(0)} €.` };
-  } else if (uscite === 0) {
-    paceStatus = { label: 'Ottimo', color: 'text-emerald-400 bg-emerald-950/60 border-emerald-900/50', msg: 'Nessuna spesa registrata questo mese.' };
+    paceStatus = { 
+      label: 'Ritmo Elevato', 
+      color: 'text-rose-400 bg-rose-950/60 border-rose-900/50', 
+      msg: `Attento! A questo ritmo sformerai il budget di ${(projectedTotalSpend - monthlyBudget).toFixed(0)} €.` 
+    };
+  } else if (cycleUscite === 0) {
+    paceStatus = { 
+      label: 'Ottimo', 
+      color: 'text-emerald-400 bg-emerald-950/60 border-emerald-900/50', 
+      msg: 'Nessuna spesa registrata in questo ciclo.' 
+    };
   }
 
-  const healthScore = Math.max(0, Math.min(100, Math.round(100 - (uscite / monthlyBudget) * 100)));
+  const healthScore = Math.max(0, Math.min(100, Math.round(100 - (cycleUscite / monthlyBudget) * 100)));
 
   const filteredTransactions = transactions.filter(t => {
     const matchesSearch = t.merchant.toLowerCase().includes(searchQuery.toLowerCase());
@@ -157,12 +202,12 @@ export default function Home() {
   });
 
   const categoriesMap = {};
-  transactions.filter(t => t.category !== 'Entrate').forEach(t => {
+  cycleTransactions.filter(t => t.category !== 'Entrate').forEach(t => {
     categoriesMap[t.category] = (categoriesMap[t.category] || 0) + Number(t.amount);
   });
 
-  const currentMonthYear = now.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
-  const formattedMonth = currentMonthYear.charAt(0).toUpperCase() + currentMonthYear.slice(1);
+  const startLabel = cycleStart.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+  const endLabel = cycleEnd.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
 
   return (
     <div className="min-h-screen bg-[#070b12] text-white font-sans pb-28 max-w-md mx-auto relative border-x border-slate-900/40">
@@ -197,8 +242,8 @@ export default function Home() {
             <section className="bg-gradient-to-b from-[#111827] to-[#0f172a] p-5 rounded-3xl border border-slate-800/80 shadow-xl">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-xs font-bold text-slate-400 tracking-wider uppercase">Patrimonio Totale</span>
-                <span className="text-xs bg-slate-800/80 border border-slate-700/50 text-slate-300 px-3 py-1 rounded-full font-medium">
-                  {formattedMonth}
+                <span className="text-xs bg-slate-800/80 border border-slate-700/50 text-emerald-400 px-3 py-1 rounded-full font-medium">
+                  Ciclo: {startLabel} - {endLabel}
                 </span>
               </div>
 
@@ -208,21 +253,21 @@ export default function Home() {
 
               <div className="pt-3 border-t border-slate-800/60 grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-xs text-slate-400 block mb-0.5">Entrate</span>
-                  <span className="font-bold text-emerald-400">+{entrate.toFixed(2)} €</span>
+                  <span className="text-xs text-slate-400 block mb-0.5">Entrate Ciclo</span>
+                  <span className="font-bold text-emerald-400">+{cycleEntrate.toFixed(2)} €</span>
                 </div>
                 <div>
-                  <span className="text-xs text-slate-400 block mb-0.5">Uscite</span>
-                  <span className="font-bold text-rose-400">-{uscite.toFixed(2)} €</span>
+                  <span className="text-xs text-slate-400 block mb-0.5">Uscite Ciclo</span>
+                  <span className="font-bold text-rose-400">-{cycleUscite.toFixed(2)} €</span>
                 </div>
               </div>
             </section>
 
-            {/* Card Stima di Fine Mese (Algoritmo Predittivo Reale) */}
+            {/* Card Stima di Fine Mese */}
             <section className="bg-[#0f172a] p-4 rounded-3xl border border-slate-800/80">
               <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
-                  <span className="text-amber-400">✨</span> Stima di Fine Mese
+                  <span className="text-amber-400">✨</span> Stima di Fine Ciclo
                 </div>
                 <span className={`text-[10px] font-semibold border px-2 py-0.5 rounded-full ${paceStatus.color}`}>
                   {paceStatus.label}
@@ -236,8 +281,8 @@ export default function Home() {
 
               <div className="mt-3 text-xs text-slate-300 bg-slate-900/80 p-3 rounded-2xl border border-slate-800/60 space-y-1.5">
                 <div className="flex justify-between text-[11px] text-slate-400">
-                  <span>Giorno del mese: <strong className="text-white">{currentDay}/{daysInMonth}</strong></span>
-                  <span>Giorni rimasti: <strong className="text-white">{remainingDays}</strong></span>
+                  <span>Giorno del ciclo: <strong className="text-white">{currentCycleDay}/{totalCycleDays}</strong></span>
+                  <span>Giorni rimasti: <strong className="text-white">{remainingCycleDays}</strong></span>
                 </div>
                 <p className="text-slate-300 pt-1 border-t border-slate-800/80">
                   💡 {paceStatus.msg}
@@ -245,7 +290,7 @@ export default function Home() {
               </div>
             </section>
 
-            {/* Ultimi Movimenti Auto-Rilevati */}
+            {/* Ultimi Movimenti */}
             <section className="space-y-3 pt-2">
               <h3 className="text-sm font-bold text-slate-300 tracking-wide">
                 Ultimi Movimenti Auto-Rilevati
@@ -357,7 +402,7 @@ export default function Home() {
           <div className="space-y-4">
             <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 flex justify-between items-center">
               <div>
-                <span className="text-xs text-slate-400">Health Score Mensile</span>
+                <span className="text-xs text-slate-400">Health Score Ciclo</span>
                 <p className="text-2xl font-black text-emerald-400 mt-1">{healthScore} / 100</p>
               </div>
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-xl text-emerald-400 font-bold">
@@ -366,9 +411,9 @@ export default function Home() {
             </section>
 
             <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-3">
-              <h3 className="font-bold text-sm text-slate-200">Ripartizione Spese per Categoria</h3>
+              <h3 className="font-bold text-sm text-slate-200">Ripartizione Spese Ciclo Corrente</h3>
               {Object.keys(categoriesMap).length === 0 ? (
-                <p className="text-xs text-slate-500">Nessuna spesa da analizzare.</p>
+                <p className="text-xs text-slate-500">Nessuna spesa nel ciclo attivo.</p>
               ) : (
                 <div className="space-y-2 pt-2">
                   {Object.entries(categoriesMap).map(([cat, amount]) => (
@@ -389,7 +434,21 @@ export default function Home() {
         {activeTab === 'opzioni' && (
           <div className="space-y-4">
             <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-3">
-              <h3 className="font-bold text-sm text-slate-200">Impostazioni Budget</h3>
+              <h3 className="font-bold text-sm text-slate-200">Impostazioni Ciclo & Budget</h3>
+              
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Giorno Inizio Ciclo (Stipendio)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="31"
+                  value={payday}
+                  onChange={(e) => setPayday(Math.max(1, Math.min(31, Number(e.target.value))))}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-sm font-bold text-emerald-400 focus:outline-none"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">Imposta il giorno in cui accrediti lo stipendio (es. 6).</p>
+              </div>
+
               <div>
                 <label className="text-xs text-slate-400 block mb-1">Budget Mensile (€)</label>
                 <input
