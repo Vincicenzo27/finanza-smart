@@ -45,6 +45,22 @@ export default function Home() {
 
   useEffect(() => {
     fetchTransactions();
+
+    // ASCASCOLTATORE REALTIME SUPABASE: Aggiorna la Home live appena arriva una spesa dall'iPhone
+    const channel = supabase
+      .channel('realtime-transactions')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'transactions' },
+        () => {
+          fetchTransactions();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchTransactions = async () => {
@@ -66,7 +82,6 @@ export default function Home() {
     setLoading(false);
   };
 
-  // Simulatore con inserimento diretto e sicuro in Supabase
   const handleSimulateWebhook = async () => {
     setSimulating(true);
     setSimFeedback(null);
@@ -81,18 +96,15 @@ export default function Home() {
         verified: true
       };
 
-      // Inserimento diretto su Supabase
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('transactions')
-        .insert([newTx])
-        .select();
+        .insert([newTx]);
 
       if (error) {
         console.error('Database Error:', error);
         setSimFeedback({ type: 'error', text: `❌ Errore Supabase: ${error.message}` });
       } else {
-        setSimFeedback({ type: 'success', text: '✅ Spesa di € 34.20 registrata con successo su Supabase!' });
-        await fetchTransactions();
+        setSimFeedback({ type: 'success', text: '✅ Spesa registrata! La lista si aggiorna in automatico.' });
       }
     } catch (e) {
       console.error(e);
@@ -134,7 +146,6 @@ export default function Home() {
 
     setSavingEdit(false);
     setEditingTx(null);
-    fetchTransactions();
   };
 
   const handleDeleteTransaction = async () => {
@@ -143,7 +154,6 @@ export default function Home() {
     await supabase.from('transactions').delete().eq('id', editingTx.id);
     setSavingEdit(false);
     setEditingTx(null);
-    fetchTransactions();
   };
 
   // CALCOLO DEL CICLO STIPENDIALE PERSONALIZZATO
@@ -252,10 +262,10 @@ export default function Home() {
         </div>
 
         {dbStatus === 'connected' && (
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="Database Connesso"></div>
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="Database Connesso Live"></div>
         )}
         {dbStatus === 'loading' && (
-          <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" title="Caricamento..."></div>
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" title="Sincronizzazione..."></div>
         )}
         {dbStatus === 'error' && (
           <div className="w-2.5 h-2.5 rounded-full bg-rose-500" title="Errore Connessione"></div>
