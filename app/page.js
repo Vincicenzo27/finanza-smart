@@ -36,9 +36,9 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tutti');
   
-  // Impostazioni Utente
-  const [monthlyBudget, setMonthlyBudget] = useState(1500);
-  const [payday, setPayday] = useState(6);
+  // Impostazioni Utente (Gestite come stringhe per permettere la cancellazione del campo)
+  const [monthlyBudget, setMonthlyBudget] = useState('1500');
+  const [payday, setPayday] = useState('6');
   const [webhookToken, setWebhookToken] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -99,19 +99,18 @@ export default function Home() {
       .single();
 
     if (data) {
-      setPayday(data.payday || 6);
-      setMonthlyBudget(data.monthly_budget || 1500);
+      setPayday(data.payday ? String(data.payday) : '6');
+      setMonthlyBudget(data.monthly_budget ? String(data.monthly_budget) : '1500');
       setWebhookToken(data.webhook_token || '');
     } else if (error && error.code === 'PGRST116') {
-      // Inizializza i settings se prima volta
       const { data: newSettings } = await supabase
         .from('user_settings')
         .insert([{ user_id: session.user.id }])
         .select()
         .single();
       if (newSettings) {
-        setPayday(newSettings.payday);
-        setMonthlyBudget(newSettings.monthly_budget);
+        setPayday(String(newSettings.payday));
+        setMonthlyBudget(String(newSettings.monthly_budget));
         setWebhookToken(newSettings.webhook_token);
       }
     }
@@ -123,8 +122,8 @@ export default function Home() {
       .from('user_settings')
       .upsert({
         user_id: session.user.id,
-        payday: newPayday,
-        monthly_budget: newBudget
+        payday: Number(newPayday),
+        monthly_budget: Number(newBudget)
       });
   };
 
@@ -255,6 +254,10 @@ export default function Home() {
     return <Auth />;
   }
 
+  // CONVERSIONE VALORI NUMERICI SICURI PER I CALCOLI
+  const paydayNum = Math.max(1, Math.min(31, Number(payday) || 6));
+  const budgetNum = Number(monthlyBudget) || 1500;
+
   // CALCOLO DEL CICLO STIPENDIALE PERSONALIZZATO
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -262,12 +265,12 @@ export default function Home() {
   const currentDay = now.getDate();
 
   let cycleStart, cycleEnd;
-  if (currentDay >= payday) {
-    cycleStart = new Date(currentYear, currentMonth, payday);
-    cycleEnd = new Date(currentYear, currentMonth + 1, payday - 1);
+  if (currentDay >= paydayNum) {
+    cycleStart = new Date(currentYear, currentMonth, paydayNum);
+    cycleEnd = new Date(currentYear, currentMonth + 1, paydayNum - 1);
   } else {
-    cycleStart = new Date(currentYear, currentMonth - 1, payday);
-    cycleEnd = new Date(currentYear, currentMonth, payday - 1);
+    cycleStart = new Date(currentYear, currentMonth - 1, paydayNum);
+    cycleEnd = new Date(currentYear, currentMonth, paydayNum - 1);
   }
 
   const strCycleStart = formatDateStr(cycleStart);
@@ -297,7 +300,7 @@ export default function Home() {
     .filter(t => t.category !== 'Entrate')
     .reduce((acc, t) => acc + Number(t.amount), 0);
 
-  const safeToSpend = Math.max(0, monthlyBudget - cycleUscite);
+  const safeToSpend = Math.max(0, budgetNum - cycleUscite);
 
   const dailyAverageSpend = currentCycleDay > 0 ? cycleUscite / currentCycleDay : 0;
   const projectedTotalSpend = cycleUscite + (dailyAverageSpend * (totalCycleDays - currentCycleDay));
@@ -309,11 +312,11 @@ export default function Home() {
     msg: `Puoi spendere massimo ${dailyBudgetAllowance.toFixed(2)} €/giorno.` 
   };
   
-  if (projectedTotalSpend > monthlyBudget) {
+  if (projectedTotalSpend > budgetNum) {
     paceStatus = { 
       label: 'Ritmo Elevato', 
       color: 'text-rose-400 bg-rose-950/60 border-rose-900/50', 
-      msg: `Attento! A questo ritmo sformerai il budget di ${(projectedTotalSpend - monthlyBudget).toFixed(0)} €.` 
+      msg: `Attento! A questo ritmo sformerai il budget di ${(projectedTotalSpend - budgetNum).toFixed(0)} €.` 
     };
   } else if (cycleUscite === 0) {
     paceStatus = { 
@@ -324,7 +327,7 @@ export default function Home() {
   }
 
   // METRICHE ANALISI
-  const rawHealthScore = Math.max(0, Math.min(100, Math.round(100 - (cycleUscite / (monthlyBudget || 1)) * 100)));
+  const rawHealthScore = Math.max(0, Math.min(100, Math.round(100 - (cycleUscite / (budgetNum || 1)) * 100)));
   const healthScore = isNaN(rawHealthScore) ? 100 : rawHealthScore;
 
   let healthStatusLabel = 'Eccellente';
@@ -352,15 +355,6 @@ export default function Home() {
   const categoriesMap = {};
   cycleTransactions.filter(t => t.category !== 'Entrate').forEach(t => {
     categoriesMap[t.category] = (categoriesMap[t.category] || 0) + Number(t.amount);
-  });
-
-  let topCategory = 'Nessuna';
-  let topCategoryAmount = 0;
-  Object.entries(categoriesMap).forEach(([cat, amt]) => {
-    if (amt > topCategoryAmount) {
-      topCategoryAmount = amt;
-      topCategory = cat;
-    }
   });
 
   const startLabel = cycleStart.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
@@ -733,10 +727,9 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 4: OPZIONI (CON INTEGRATO IL LINK APPLE PAY PERSONALE) */}
+        {/* TAB 4: OPZIONI (INPUT CORRETTI PER CANCELLAZIONE CIFIRES) */}
         {activeTab === 'opzioni' && (
           <div className="space-y-4">
-            {/* Box Link Webhook Personale */}
             <section className="bg-gradient-to-b from-[#111827] to-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-3 shadow-xl">
               <h3 className="font-bold text-sm text-white flex items-center gap-2">
                 🔗 Link Apple Pay Personale
@@ -769,9 +762,22 @@ export default function Home() {
                   max="31"
                   value={payday}
                   onChange={(e) => {
-                    const val = Math.max(1, Math.min(31, Number(e.target.value)));
+                    const val = e.target.value;
                     setPayday(val);
-                    saveUserSettings(val, monthlyBudget);
+                    if (val !== '' && !isNaN(Number(val))) {
+                      const num = Math.max(1, Math.min(31, Number(val)));
+                      saveUserSettings(num, Number(monthlyBudget) || 1500);
+                    }
+                  }}
+                  onBlur={() => {
+                    if (!payday || isNaN(Number(payday))) {
+                      setPayday('6');
+                      saveUserSettings(6, Number(monthlyBudget) || 1500);
+                    } else {
+                      const num = Math.max(1, Math.min(31, Number(payday)));
+                      setPayday(String(num));
+                      saveUserSettings(num, Number(monthlyBudget) || 1500);
+                    }
                   }}
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-[16px] font-bold text-emerald-400 focus:outline-none"
                 />
@@ -783,9 +789,17 @@ export default function Home() {
                   type="number"
                   value={monthlyBudget}
                   onChange={(e) => {
-                    const val = Number(e.target.value);
+                    const val = e.target.value;
                     setMonthlyBudget(val);
-                    saveUserSettings(payday, val);
+                    if (val !== '' && !isNaN(Number(val))) {
+                      saveUserSettings(Number(payday) || 6, Number(val));
+                    }
+                  }}
+                  onBlur={() => {
+                    if (!monthlyBudget || isNaN(Number(monthlyBudget))) {
+                      setMonthlyBudget('1500');
+                      saveUserSettings(Number(payday) || 6, 1500);
+                    }
                   }}
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-[16px] font-bold text-emerald-400 focus:outline-none"
                 />
