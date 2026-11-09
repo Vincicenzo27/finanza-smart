@@ -71,7 +71,6 @@ export default function Home() {
     setLoading(true);
     setDbStatus('loading');
     
-    // Ordine: dal più recente al meno recente (ID decrescente)
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
@@ -252,7 +251,7 @@ export default function Home() {
   const endLabel = cycleEnd.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
 
   return (
-    <div className="min-h-screen bg-[#070b12] text-white font-sans pb-28 max-w-md mx-auto relative border-x border-slate-900/40">
+    <div className="min-h-screen bg-[#070b12] text-white font-sans pb-28 max-w-md mx-auto relative border-x border-slate-900/40 overflow-x-hidden">
       
       {/* Header Top */}
       <header className="p-4 flex justify-between items-center pt-6">
@@ -342,18 +341,19 @@ export default function Home() {
                 Ultimi Movimenti
               </h3>
 
-              <div className="flex gap-2">
+              {/* FIX: Contenitore Flessibile con min-w-0 e width definita per evitare lo sbordamento a destra */}
+              <div className="flex gap-2 w-full min-w-0">
                 <input
                   type="text"
                   placeholder="Cerca..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-[16px] text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="flex-1 min-w-0 w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-[15px] text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 box-border"
                 />
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-[16px] text-slate-300 focus:outline-none"
+                  className="w-28 shrink-0 min-w-0 bg-slate-900 border border-slate-800 rounded-xl px-2 py-2.5 text-[14px] text-slate-300 focus:outline-none box-border"
                 >
                   <option value="Tutti">Tutti</option>
                   <option value="Spesa">Spesa</option>
@@ -418,7 +418,7 @@ export default function Home() {
         {/* TAB 2: INSERISCI MANUALE */}
         {activeTab === 'inserisci' && (
           <div className="space-y-4">
-            <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-4 shadow-xl">
+            <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-4 shadow-xl box-border">
               <h2 className="font-extrabold text-base text-white flex items-center gap-2">
                 ➕ Nuovo Movimento
               </h2>
@@ -459,7 +459,7 @@ export default function Home() {
                     required
                     value={manualAmount}
                     onChange={(e) => setManualAmount(e.target.value)}
-                    className="w-full box-border bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] font-bold text-emerald-400 focus:outline-none focus:border-emerald-500"
+                    className="w-full box-border min-w-0 bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] font-bold text-emerald-400 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
 
@@ -473,7 +473,7 @@ export default function Home() {
                     required
                     value={manualMerchant}
                     onChange={(e) => setManualMerchant(e.target.value)}
-                    className="w-full box-border bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500"
+                    className="w-full box-border min-w-0 bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
 
@@ -483,7 +483,7 @@ export default function Home() {
                     <select
                       value={manualCategory}
                       onChange={(e) => setManualCategory(e.target.value)}
-                      className="w-full box-border bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] text-slate-200 font-semibold focus:outline-none focus:border-emerald-500"
+                      className="w-full box-border min-w-0 bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] text-slate-200 font-semibold focus:outline-none focus:border-emerald-500"
                     >
                       <option value="Spesa">🛒 Spesa</option>
                       <option value="Ristorazione">🍕 Ristorazione</option>
@@ -497,13 +497,15 @@ export default function Home() {
                   </div>
                 )}
 
+                {/* FIX: Input Data con azzeramento WebKit per allineamento millimetrico su iOS */}
                 <div>
                   <label className="text-xs text-slate-400 font-semibold block mb-1">Data</label>
                   <input
                     type="date"
                     value={manualDate}
                     onChange={(e) => setManualDate(e.target.value)}
-                    className="w-full box-border bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] text-slate-200 focus:outline-none focus:border-emerald-500"
+                    style={{ WebkitAppearance: 'none' }}
+                    className="w-full box-border min-w-0 bg-slate-950 border border-slate-800 rounded-xl p-3 text-[15px] text-slate-200 focus:outline-none focus:border-emerald-500 block text-center"
                   />
                 </div>
 
