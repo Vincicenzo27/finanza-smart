@@ -237,7 +237,23 @@ export default function Home() {
     };
   }
 
-  const healthScore = Math.max(0, Math.min(100, Math.round(100 - (cycleUscite / monthlyBudget) * 100)));
+  // HEALTH SCORE CALCULATION & METRICS FOR ANALYSIS
+  const rawHealthScore = Math.max(0, Math.min(100, Math.round(100 - (cycleUscite / (monthlyBudget || 1)) * 100)));
+  const healthScore = isNaN(rawHealthScore) ? 100 : rawHealthScore;
+
+  let healthStatusLabel = 'Eccellente';
+  let healthColor = 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30';
+  if (healthScore < 40) {
+    healthStatusLabel = 'Critico';
+    healthColor = 'text-rose-400 bg-rose-500/20 border-rose-500/30';
+  } else if (healthScore < 70) {
+    healthStatusLabel = 'Moderato';
+    healthColor = 'text-amber-400 bg-amber-500/20 border-amber-500/30';
+  }
+
+  const savingsRate = cycleEntrate > 0 
+    ? Math.max(0, Math.round(((cycleEntrate - cycleUscite) / cycleEntrate) * 100)) 
+    : 0;
 
   const filteredTransactions = transactions.filter(t => {
     const merchantName = (t.merchant || t.merchant_name || t.description || '').toString();
@@ -249,6 +265,16 @@ export default function Home() {
   const categoriesMap = {};
   cycleTransactions.filter(t => t.category !== 'Entrate').forEach(t => {
     categoriesMap[t.category] = (categoriesMap[t.category] || 0) + Number(t.amount);
+  });
+
+  // Top Spesa per categoria
+  let topCategory = 'Nessuna';
+  let topCategoryAmount = 0;
+  Object.entries(categoriesMap).forEach(([cat, amt]) => {
+    if (amt > topCategoryAmount) {
+      topCategoryAmount = amt;
+      topCategory = cat;
+    }
   });
 
   const startLabel = cycleStart.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
@@ -530,36 +556,115 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 3: ANALISI */}
+        {/* TAB 3: ANALISI (NUOVA INTERFACCIA COMPLETA) */}
         {activeTab === 'analisi' && (
           <div className="space-y-4">
-            <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 flex justify-between items-center">
-              <div>
-                <span className="text-xs text-slate-400">Health Score Ciclo</span>
-                <p className="text-2xl font-black text-emerald-400 mt-1">{healthScore} / 100</p>
+            
+            {/* Card Health Score & Progress Bar */}
+            <section className="bg-gradient-to-b from-[#111827] to-[#0f172a] p-5 rounded-3xl border border-slate-800/80 shadow-xl space-y-3">
+              <div className="flex justify-between items-center">
+                <div>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Health Score Ciclo</span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <p className="text-3xl font-black text-white">{healthScore}</p>
+                    <span className="text-xs text-slate-400">/ 100</span>
+                  </div>
+                </div>
+                <span className={`text-xs font-bold px-3 py-1 rounded-full border ${healthColor}`}>
+                  {healthStatusLabel}
+                </span>
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-xl text-emerald-400 font-bold">
-                📈
+
+              {/* Progress Bar Health */}
+              <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800">
+                <div
+                  className={`h-full transition-all duration-500 ${
+                    healthScore > 70 ? 'bg-emerald-500' : healthScore > 40 ? 'bg-amber-400' : 'bg-rose-500'
+                  }`}
+                  style={{ width: `${healthScore}%` }}
+                ></div>
+              </div>
+              <p className="text-[11px] text-slate-400 pt-1">
+                Calcolato in base al rapporto tra uscite correnti ({cycleUscite.toFixed(0)} €) e budget impostato ({monthlyBudget} €).
+              </p>
+            </section>
+
+            {/* KPI Grid Metrics */}
+            <section className="grid grid-cols-2 gap-3">
+              <div className="bg-[#0f172a] p-4 rounded-3xl border border-slate-800/80 space-y-1">
+                <span className="text-[11px] font-semibold text-slate-400">🔥 Spesa Media/Giorno</span>
+                <p className="text-lg font-black text-rose-400">{dailyAverageSpend.toFixed(2)} €</p>
+                <span className="text-[10px] text-slate-500 block">Basato su {currentCycleDay} giorni</span>
+              </div>
+
+              <div className="bg-[#0f172a] p-4 rounded-3xl border border-slate-800/80 space-y-1">
+                <span className="text-[11px] font-semibold text-slate-400">🌱 Tasso di Risparmio</span>
+                <p className="text-lg font-black text-emerald-400">{savingsRate}%</p>
+                <span className="text-[10px] text-slate-500 block">Delle entrate del ciclo</span>
               </div>
             </section>
 
-            <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-3">
-              <h3 className="font-bold text-sm text-slate-200">Ripartizione Spese Ciclo Corrente</h3>
+            {/* Visual Bar Breakdown Categorie */}
+            <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="font-bold text-sm text-slate-200">Spese per Categoria</h3>
+                <span className="text-[10px] text-slate-400 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-full">
+                  Totale: {cycleUscite.toFixed(2)} €
+                </span>
+              </div>
+
               {Object.keys(categoriesMap).length === 0 ? (
-                <p className="text-xs text-slate-500">Nessuna spesa nel ciclo attivo.</p>
+                <div className="bg-slate-950/50 p-6 rounded-2xl text-center border border-slate-900">
+                  <p className="text-xs text-slate-500">Nessuna spesa registrata in questo ciclo.</p>
+                </div>
               ) : (
-                <div className="space-y-2 pt-2">
-                  {Object.entries(categoriesMap).map(([cat, amount]) => (
-                    <div key={cat} className="flex justify-between items-center bg-slate-900/60 p-3 rounded-xl border border-slate-800/40">
-                      <span className="text-xs font-semibold text-slate-300 flex items-center gap-2">
-                        <span>{getCategoryIcon(cat)}</span> {cat}
-                      </span>
-                      <span className="text-xs font-bold text-rose-400">{amount.toFixed(2)} €</span>
-                    </div>
-                  ))}
+                <div className="space-y-3 pt-1">
+                  {Object.entries(categoriesMap)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([cat, amount]) => {
+                      const percentage = cycleUscite > 0 ? Math.round((amount / cycleUscite) * 100) : 0;
+                      return (
+                        <div key={cat} className="space-y-1.5">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-semibold text-slate-300 flex items-center gap-1.5">
+                              <span>{getCategoryIcon(cat)}</span> {cat}
+                            </span>
+                            <div className="text-right">
+                              <span className="font-extrabold text-white">{amount.toFixed(2)} €</span>
+                              <span className="text-[10px] text-slate-400 ml-1">({percentage}%)</span>
+                            </div>
+                          </div>
+                          
+                          {/* Visual Bar */}
+                          <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800/80">
+                            <div
+                              className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                              style={{ width: `${percentage}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
               )}
             </section>
+
+            {/* Smart Summary Insight */}
+            <section className="bg-[#0f172a] p-4 rounded-3xl border border-slate-800 space-y-2">
+              <h4 className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                💡 AI Financial Insight
+              </h4>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                {topCategory !== 'Nessuna' ? (
+                  <>
+                    La tua voce di spesa principale in questo ciclo è <strong className="text-emerald-400">{topCategory}</strong> ({topCategoryAmount.toFixed(2)} €). {projectedTotalSpend > monthlyBudget ? 'Ridurre questa voce ti aiuterebbe a rientrare nel budget.' : 'Ottimo lavoro nel mantenere sotto controllo le uscite!'}
+                  </>
+                ) : (
+                  'Registra la tua prima spesa per sbloccare i suggerimenti personalizzati sull\'andamento finanziario.'
+                )}
+              </p>
+            </section>
+
           </div>
         )}
 
