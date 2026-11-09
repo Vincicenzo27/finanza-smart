@@ -30,7 +30,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tutti');
   const [monthlyBudget, setMonthlyBudget] = useState(1500);
-  const [payday, setPayday] = useState(6); // Giorno del mese di stipendio / inizio ciclo
+  const [payday, setPayday] = useState(6);
   const [simulating, setSimulating] = useState(false);
 
   // Popup Modifica Movimento
@@ -123,7 +123,7 @@ export default function Home() {
     fetchTransactions();
   };
 
-  // CALCOLO DEL CICLO STIPENDIALE PERSONALIZZATO (es. dal 6 al 5)
+  // CALCOLO DEL CICLO STIPENDIALE PERSONALIZZATO
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth();
@@ -145,7 +145,6 @@ export default function Home() {
   const currentCycleDay = Math.round((now - cycleStart) / (1000 * 60 * 60 * 24)) + 1;
   const remainingCycleDays = Math.max(1, totalCycleDays - currentCycleDay + 1);
 
-  // Transazioni complessive e transazioni del ciclo corrente
   const totalEntrate = transactions
     .filter(t => t.category === 'Entrate')
     .reduce((acc, t) => acc + Number(t.amount), 0);
@@ -168,7 +167,6 @@ export default function Home() {
 
   const safeToSpend = Math.max(0, monthlyBudget - cycleUscite);
 
-  // Algoritmo Predittivo sul Ciclo
   const dailyAverageSpend = currentCycleDay > 0 ? cycleUscite / currentCycleDay : 0;
   const projectedTotalSpend = cycleUscite + (dailyAverageSpend * (totalCycleDays - currentCycleDay));
   const dailyBudgetAllowance = safeToSpend / remainingCycleDays;
@@ -212,7 +210,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#070b12] text-white font-sans pb-28 max-w-md mx-auto relative border-x border-slate-900/40">
       
-      {/* Header Top */}
+      {/* Header Top Pulito */}
       <header className="p-4 flex justify-between items-center pt-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold shadow-lg shadow-emerald-500/10">
@@ -228,9 +226,7 @@ export default function Home() {
             <p className="text-xs text-slate-400">Zero Inserimento Manuale</p>
           </div>
         </div>
-        <button onClick={fetchTransactions} title="Ricarica dati" className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition">
-          🔄
-        </button>
+        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="Database Connesso"></div>
       </header>
 
       <main className="px-4 space-y-4 mt-2">
@@ -238,7 +234,6 @@ export default function Home() {
         {/* TAB 1: HOME */}
         {activeTab === 'home' && (
           <>
-            {/* Card Patrimonio Totale */}
             <section className="bg-gradient-to-b from-[#111827] to-[#0f172a] p-5 rounded-3xl border border-slate-800/80 shadow-xl">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-xs font-bold text-slate-400 tracking-wider uppercase">Patrimonio Totale</span>
@@ -263,7 +258,6 @@ export default function Home() {
               </div>
             </section>
 
-            {/* Card Stima di Fine Mese */}
             <section className="bg-[#0f172a] p-4 rounded-3xl border border-slate-800/80">
               <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
@@ -290,7 +284,6 @@ export default function Home() {
               </div>
             </section>
 
-            {/* Ultimi Movimenti */}
             <section className="space-y-3 pt-2">
               <h3 className="text-sm font-bold text-slate-300 tracking-wide">
                 Ultimi Movimenti Auto-Rilevati
