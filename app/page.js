@@ -57,7 +57,7 @@ export default function Home() {
       .order('date', { ascending: false });
 
     if (error) {
-      console.error(error);
+      console.error('Fetch error:', error);
       setDbStatus('error');
     } else {
       setTransactions(data || []);
@@ -66,34 +66,37 @@ export default function Home() {
     setLoading(false);
   };
 
+  // Simulatore con inserimento diretto e sicuro in Supabase
   const handleSimulateWebhook = async () => {
     setSimulating(true);
     setSimFeedback(null);
     try {
-      const res = await fetch('/api/webhook', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          merchant: 'Esselunga',
-          amount: 34.20,
-          category: 'Spesa',
-          date: new Date().toISOString().split('T')[0],
-          source: 'Simulatore App'
-        })
-      });
-      
-      const data = await res.json().catch(() => ({}));
+      const todayStr = new Date().toISOString().split('T')[0];
+      const newTx = {
+        merchant: 'Esselunga',
+        amount: 34.20,
+        category: 'Spesa',
+        date: todayStr,
+        source: 'Simulatore App',
+        verified: true
+      };
 
-      if (res.ok) {
-        setSimFeedback({ type: 'success', text: '✅ Transazione di test creata con successo in Supabase!' });
-        await fetchTransactions();
+      // Inserimento diretto su Supabase
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert([newTx])
+        .select();
+
+      if (error) {
+        console.error('Database Error:', error);
+        setSimFeedback({ type: 'error', text: `❌ Errore Supabase: ${error.message}` });
       } else {
-        setSimFeedback({ type: 'error', text: `❌ Errore API (${res.status}): ${data.error || 'Impossibile completare la richiesta'}` });
+        setSimFeedback({ type: 'success', text: '✅ Spesa di € 34.20 registrata con successo su Supabase!' });
+        await fetchTransactions();
       }
     } catch (e) {
       console.error(e);
-      setSimFeedback({ type: 'error', text: '❌ Errore di rete durante la chiamata al Webhook' });
-      setDbStatus('error');
+      setSimFeedback({ type: 'error', text: '❌ Errore durante la registrazione della spesa' });
     }
     setSimulating(false);
   };
@@ -119,11 +122,12 @@ export default function Home() {
       })
       .eq('id', editingTx.id);
 
-    if (!txError && editingTx.merchant) {
+    const merchantName = editingTx.merchant || editingTx.merchant_name;
+    if (!txError && merchantName) {
       await supabase
         .from('category_memory')
         .upsert(
-          { merchant_name: editingTx.merchant, preferred_category: editCategory },
+          { merchant_name: merchantName, preferred_category: editCategory },
           { onConflict: 'merchant_name' }
         );
     }
@@ -213,7 +217,8 @@ export default function Home() {
   const healthScore = Math.max(0, Math.min(100, Math.round(100 - (cycleUscite / monthlyBudget) * 100)));
 
   const filteredTransactions = transactions.filter(t => {
-    const matchesSearch = t.merchant.toLowerCase().includes(searchQuery.toLowerCase());
+    const merchantName = (t.merchant || t.merchant_name || t.description || '').toString();
+    const matchesSearch = merchantName.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCat = selectedCategory === 'Tutti' || t.category === selectedCategory;
     return matchesSearch && matchesCat;
   });
@@ -350,37 +355,40 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {filteredTransactions.map((tx) => (
-                    <div
-                      key={tx.id}
-                      onClick={() => openEditModal(tx)}
-                      className="bg-slate-900/80 hover:bg-slate-800/60 transition cursor-pointer p-3.5 rounded-2xl border border-slate-800/80 flex justify-between items-center active:scale-[0.99]"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-slate-800 border border-slate-700/50 flex items-center justify-center text-lg shadow-inner">
-                          {getCategoryIcon(tx.category)}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-bold text-sm text-slate-100">{tx.merchant}</p>
-                            {tx.verified && (
-                              <span className="text-[9px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 px-1.5 py-0.2 rounded">
-                                ✓
-                              </span>
-                            )}
+                  {filteredTransactions.map((tx) => {
+                    const mName = tx.merchant || tx.merchant_name || 'Spesa';
+                    return (
+                      <div
+                        key={tx.id}
+                        onClick={() => openEditModal(tx)}
+                        className="bg-slate-900/80 hover:bg-slate-800/60 transition cursor-pointer p-3.5 rounded-2xl border border-slate-800/80 flex justify-between items-center active:scale-[0.99]"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-slate-800 border border-slate-700/50 flex items-center justify-center text-lg shadow-inner">
+                            {getCategoryIcon(tx.category)}
                           </div>
-                          <p className="text-[11px] text-slate-400">
-                            {tx.category || 'Generale'} • {tx.source || 'iPhone'} • {tx.date}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-sm text-slate-100">{mName}</p>
+                              {tx.verified && (
+                                <span className="text-[9px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 px-1.5 py-0.2 rounded">
+                                  ✓
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-400">
+                              {tx.category || 'Generale'} • {tx.source || 'iPhone'} • {tx.date}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className={`font-black text-sm ${tx.category === 'Entrate' ? 'text-emerald-400' : 'text-slate-100'}`}>
+                            {tx.category === 'Entrate' ? '+' : '-'}{Number(tx.amount).toFixed(2)} €
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className={`font-black text-sm ${tx.category === 'Entrate' ? 'text-emerald-400' : 'text-slate-100'}`}>
-                          {tx.category === 'Entrate' ? '+' : '-'}{Number(tx.amount).toFixed(2)} €
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </section>
@@ -405,7 +413,7 @@ export default function Home() {
             <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-3">
               <h3 className="font-bold text-sm text-white">🧪 Simulatore Notifica Banca</h3>
               <p className="text-xs text-slate-400">
-                Invia una spesa di test (€ 34.20 Esselunga) per verificare la rotta del Webhook e Supabase:
+                Invia una spesa di test (€ 34.20 Esselunga) direttamente nel database Supabase:
               </p>
               <button 
                 onClick={handleSimulateWebhook}
@@ -513,7 +521,7 @@ export default function Home() {
           <div className="bg-[#0f172a] border border-slate-800 w-full max-w-sm rounded-3xl p-5 space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-200">
             <div className="flex justify-between items-center border-b border-slate-800/80 pb-3">
               <div>
-                <h3 className="font-black text-base text-white">{editingTx.merchant}</h3>
+                <h3 className="font-black text-base text-white">{editingTx.merchant || editingTx.merchant_name || 'Spesa'}</h3>
                 <p className="text-[11px] text-slate-400">Modifica transazione e memoria AI</p>
               </div>
               <button 
