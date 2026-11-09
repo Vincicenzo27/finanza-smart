@@ -26,13 +26,16 @@ const formatDateStr = (d) => {
 export default function Home() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [dbStatus, setDbStatus] = useState('connected'); // 'connected' | 'loading' | 'error'
+  const [dbStatus, setDbStatus] = useState('connected');
   const [activeTab, setActiveTab] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tutti');
   const [monthlyBudget, setMonthlyBudget] = useState(1500);
   const [payday, setPayday] = useState(6);
+
+  // Stato Simulatore Webhook
   const [simulating, setSimulating] = useState(false);
+  const [simFeedback, setSimFeedback] = useState(null);
 
   // Popup Modifica Movimento
   const [editingTx, setEditingTx] = useState(null);
@@ -65,6 +68,7 @@ export default function Home() {
 
   const handleSimulateWebhook = async () => {
     setSimulating(true);
+    setSimFeedback(null);
     try {
       const res = await fetch('/api/webhook', {
         method: 'POST',
@@ -77,11 +81,18 @@ export default function Home() {
           source: 'Simulatore App'
         })
       });
+      
+      const data = await res.json().catch(() => ({}));
+
       if (res.ok) {
+        setSimFeedback({ type: 'success', text: '✅ Transazione di test creata con successo in Supabase!' });
         await fetchTransactions();
+      } else {
+        setSimFeedback({ type: 'error', text: `❌ Errore API (${res.status}): ${data.error || 'Impossibile completare la richiesta'}` });
       }
     } catch (e) {
       console.error(e);
+      setSimFeedback({ type: 'error', text: '❌ Errore di rete durante la chiamata al Webhook' });
       setDbStatus('error');
     }
     setSimulating(false);
@@ -218,7 +229,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#070b12] text-white font-sans pb-28 max-w-md mx-auto relative border-x border-slate-900/40">
       
-      {/* Header Top con Spia Stato Dinamica */}
+      {/* Header Top */}
       <header className="p-4 flex justify-between items-center pt-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold shadow-lg shadow-emerald-500/10">
@@ -235,15 +246,14 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Indicatore Stato Connessione */}
         {dbStatus === 'connected' && (
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="Database Connesso e Sincronizzato"></div>
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="Database Connesso"></div>
         )}
         {dbStatus === 'loading' && (
-          <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" title="Sincronizzazione in corso..."></div>
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" title="Caricamento..."></div>
         )}
         {dbStatus === 'error' && (
-          <div className="w-2.5 h-2.5 rounded-full bg-rose-500" title="Errore Connessione Supabase"></div>
+          <div className="w-2.5 h-2.5 rounded-full bg-rose-500" title="Errore Connessione"></div>
         )}
       </header>
 
@@ -395,15 +405,25 @@ export default function Home() {
             <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-3">
               <h3 className="font-bold text-sm text-white">🧪 Simulatore Notifica Banca</h3>
               <p className="text-xs text-slate-400">
-                Prova ad inviare una spesa di test direttamente nel database Supabase:
+                Invia una spesa di test (€ 34.20 Esselunga) per verificare la rotta del Webhook e Supabase:
               </p>
               <button 
                 onClick={handleSimulateWebhook}
                 disabled={simulating}
-                className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-extrabold py-3 rounded-2xl flex items-center justify-center gap-2 text-xs shadow-lg shadow-emerald-500/20 transition cursor-pointer"
+                className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-extrabold py-3 rounded-2xl flex items-center justify-center gap-2 text-xs shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95"
               >
-                {simulating ? 'Invio in corso...' : '📲 Simula Arrivo Spesa (€ 34.20 Esselunga)'}
+                {simulating ? 'Inoltro in corso...' : '📲 Simula Arrivo Spesa'}
               </button>
+
+              {simFeedback && (
+                <div className={`p-3 rounded-xl text-xs font-semibold border ${
+                  simFeedback.type === 'success' 
+                    ? 'bg-emerald-950/80 border-emerald-800 text-emerald-300' 
+                    : 'bg-rose-950/80 border-rose-800 text-rose-300'
+                }`}>
+                  {simFeedback.text}
+                </div>
+              )}
             </section>
           </div>
         )}
