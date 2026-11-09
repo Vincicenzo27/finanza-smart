@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import Auth from '../components/Auth';
 
 const getCategoryIcon = (category) => {
   switch (category) {
@@ -25,16 +26,23 @@ const formatDateStr = (d) => {
 };
 
 export default function Home() {
+  const [session, setSession] = useState(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
+
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dbStatus, setDbStatus] = useState('connected');
   const [activeTab, setActiveTab] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tutti');
+  
+  // Impostazioni Utente
   const [monthlyBudget, setMonthlyBudget] = useState(1500);
   const [payday, setPayday] = useState(6);
+  const [webhookToken, setWebhookToken] = useState('');
+  const [copiedLink, setCopiedLink] = useState(false);
 
-  // Form Manual Inserimento Movimento
+  // Form Manual Inserimento
   const [manualType, setManualType] = useState('uscita');
   const [manualAmount, setManualAmount] = useState('');
   const [manualMerchant, setManualMerchant] = useState('');
@@ -43,7 +51,7 @@ export default function Home() {
   const [savingManual, setSavingManual] = useState(false);
   const [manualSuccessMsg, setManualSuccessMsg] = useState('');
 
-  // Popup Modifica Movimento
+  // Popup Modifica
   const [editingTx, setEditingTx] = useState(null);
   const [editMerchant, setEditMerchant] = useState('');
   const [editAmount, setEditAmount] = useState('');
@@ -51,31 +59,84 @@ export default function Home() {
   const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoadingAuth(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setLoadingAuth(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!session?.user) return;
+
+    fetchUserSettings();
     fetchTransactions();
 
     const channel = supabase
-      .channel('realtime-transactions')
+      .channel(`realtime-transactions-${session.user.id}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'transactions' },
-        () => {
-          fetchTransactions();
-        }
+        { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${session.user.id}` },
+        () => { fetchTransactions(); }
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+    return () => { supabase.removeChannel(channel); };
+  }, [session]);
+
+  const fetchUserSettings = async () => {
+    if (!session?.user) return;
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .single();
+
+    if (data) {
+      setPayday(data.payday || 6);
+      setMonthlyBudget(data.monthly_budget || 1500);
+      setWebhookToken(data.webhook_token || '');
+    } else if (error && error.code === 'PGRST116') {
+      // Inizializza i settings se prima volta
+      const { data: newSettings } = await supabase
+        .from('user_settings')
+        .insert([{ user_id: session.user.id }])
+        .select()
+        .single();
+      if (newSettings) {
+        setPayday(newSettings.payday);
+        setMonthlyBudget(newSettings.monthly_budget);
+        setWebhookToken(newSettings.webhook_token);
+      }
+    }
+  };
+
+  const saveUserSettings = async (newPayday, newBudget) => {
+    if (!session?.user) return;
+    await supabase
+      .from('user_settings')
+      .upsert({
+        user_id: session.user.id,
+        payday: newPayday,
+        monthly_budget: newBudget
+      });
+  };
 
   const fetchTransactions = async () => {
+    if (!session?.user) return;
     setLoading(true);
     setDbStatus('loading');
     
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
+      .eq('user_id', session.user.id)
       .order('date', { ascending: false })
       .order('id', { ascending: false });
 
@@ -91,7 +152,7 @@ export default function Home() {
 
   const handleAddManualTransaction = async (e) => {
     e.preventDefault();
-    if (!manualAmount || !manualMerchant) return;
+    if (!manualAmount || !manualMerchant || !session?.user) return;
 
     setSavingManual(true);
     setManualSuccessMsg('');
@@ -99,6 +160,7 @@ export default function Home() {
     const finalCategory = manualType === 'entrata' ? 'Entrate' : manualCategory;
 
     const newTx = {
+      user_id: session.user.id,
       merchant: manualMerchant,
       amount: parseFloat(manualAmount),
       category: finalCategory,
@@ -132,7 +194,7 @@ export default function Home() {
   };
 
   const handleSaveTransaction = async () => {
-    if (!editingTx) return;
+    if (!editingTx || !session?.user) return;
     setSavingEdit(true);
 
     const updatedAmount = parseFloat(editAmount);
@@ -146,14 +208,15 @@ export default function Home() {
         category: editCategory,
         verified: true
       })
-      .eq('id', editingTx.id);
+      .eq('id', editingTx.id)
+      .eq('user_id', session.user.id);
 
     if (!txError && updatedMerchant) {
       await supabase
         .from('category_memory')
         .upsert(
-          { merchant_name: updatedMerchant, preferred_category: editCategory },
-          { onConflict: 'merchant_name' }
+          { user_id: session.user.id, merchant_name: updatedMerchant, preferred_category: editCategory },
+          { onConflict: 'user_id,merchant_name' }
         );
     }
 
@@ -162,12 +225,35 @@ export default function Home() {
   };
 
   const handleDeleteTransaction = async () => {
-    if (!editingTx) return;
+    if (!editingTx || !session?.user) return;
     setSavingEdit(true);
-    await supabase.from('transactions').delete().eq('id', editingTx.id);
+    await supabase.from('transactions').delete().eq('id', editingTx.id).eq('user_id', session.user.id);
     setSavingEdit(false);
     setEditingTx(null);
   };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  const copyWebhookUrl = () => {
+    const url = `${window.location.origin}/api/webhook?token=${webhookToken}`;
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  if (loadingAuth) {
+    return (
+      <div className="min-h-screen bg-[#070b12] text-white flex items-center justify-center">
+        <p className="text-xs text-slate-400 animate-pulse">Caricamento FinAuto AI...</p>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Auth />;
+  }
 
   // CALCOLO DEL CICLO STIPENDIALE PERSONALIZZATO
   const now = new Date();
@@ -237,7 +323,7 @@ export default function Home() {
     };
   }
 
-  // METRICHE PER SCHEDA ANALISI
+  // METRICHE ANALISI
   const rawHealthScore = Math.max(0, Math.min(100, Math.round(100 - (cycleUscite / (monthlyBudget || 1)) * 100)));
   const healthScore = isNaN(rawHealthScore) ? 100 : rawHealthScore;
 
@@ -293,10 +379,10 @@ export default function Home() {
             <div className="flex items-center gap-2">
               <h1 className="font-extrabold text-lg tracking-tight text-white">FinAuto AI</h1>
               <span className="text-[10px] font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-800/50 px-2 py-0.5 rounded-full">
-                Auto-Log
+                Multi-User
               </span>
             </div>
-            <p className="text-xs text-slate-400">Tracciamento Finanziario Smart</p>
+            <p className="text-xs text-slate-400 truncate max-w-[180px]">{session.user.email}</p>
           </div>
         </div>
 
@@ -559,8 +645,6 @@ export default function Home() {
         {/* TAB 3: ANALISI */}
         {activeTab === 'analisi' && (
           <div className="space-y-4">
-            
-            {/* Card Health Score & Progress Bar */}
             <section className="bg-gradient-to-b from-[#111827] to-[#0f172a] p-5 rounded-3xl border border-slate-800/80 shadow-xl space-y-3">
               <div className="flex justify-between items-center">
                 <div>
@@ -575,7 +659,6 @@ export default function Home() {
                 </span>
               </div>
 
-              {/* Progress Bar Health */}
               <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800">
                 <div
                   className={`h-full transition-all duration-500 ${
@@ -584,12 +667,8 @@ export default function Home() {
                   style={{ width: `${healthScore}%` }}
                 ></div>
               </div>
-              <p className="text-[11px] text-slate-400 pt-1">
-                Calcolato in base al rapporto tra uscite correnti ({cycleUscite.toFixed(0)} €) e budget impostato ({monthlyBudget} €).
-              </p>
             </section>
 
-            {/* KPI Grid Metrics (Media Giornaliera, Risparmiati in €, Risparmio in %) */}
             <section className="grid grid-cols-3 gap-2">
               <div className="bg-[#0f172a] p-3 rounded-2xl border border-slate-800/80 space-y-1 text-center">
                 <span className="text-[10px] font-semibold text-slate-400 block truncate">🔥 Media/Giorno</span>
@@ -609,7 +688,6 @@ export default function Home() {
               </div>
             </section>
 
-            {/* Visual Bar Breakdown Categorie */}
             <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="font-bold text-sm text-slate-200">Spese per Categoria</h3>
@@ -640,7 +718,6 @@ export default function Home() {
                             </div>
                           </div>
                           
-                          {/* Visual Bar */}
                           <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800/80">
                             <div
                               className="bg-emerald-500 h-full rounded-full transition-all duration-500"
@@ -653,29 +730,34 @@ export default function Home() {
                 </div>
               )}
             </section>
-
-            {/* Smart Summary Insight */}
-            <section className="bg-[#0f172a] p-4 rounded-3xl border border-slate-800 space-y-2">
-              <h4 className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                💡 AI Financial Insight
-              </h4>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {topCategory !== 'Nessuna' ? (
-                  <>
-                    La tua voce di spesa principale in questo ciclo è <strong className="text-emerald-400">{topCategory}</strong> ({topCategoryAmount.toFixed(2)} €). {projectedTotalSpend > monthlyBudget ? 'Ridurre questa voce ti aiuterebbe a rientrare nel budget.' : 'Ottimo lavoro nel mantenere sotto controllo le uscite!'}
-                  </>
-                ) : (
-                  'Registra la tua prima spesa per sbloccare i suggerimenti personalizzati sull\'andamento finanziario.'
-                )}
-              </p>
-            </section>
-
           </div>
         )}
 
-        {/* TAB 4: OPZIONI */}
+        {/* TAB 4: OPZIONI (CON INTEGRATO IL LINK APPLE PAY PERSONALE) */}
         {activeTab === 'opzioni' && (
           <div className="space-y-4">
+            {/* Box Link Webhook Personale */}
+            <section className="bg-gradient-to-b from-[#111827] to-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-3 shadow-xl">
+              <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                🔗 Link Apple Pay Personale
+              </h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Copia questo URL e incollalo nel tuo Comando Rapido su iPhone. Ogni spesa registrata verrà inviata unicamente al tuo account.
+              </p>
+              
+              <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800 break-all text-[11px] font-mono text-emerald-400 select-all">
+                {typeof window !== 'undefined' ? `${window.location.origin}/api/webhook?token=${webhookToken}` : 'Caricamento...'}
+              </div>
+
+              <button
+                type="button"
+                onClick={copyWebhookUrl}
+                className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold py-3 rounded-xl text-xs transition active:scale-95 shadow-md shadow-emerald-500/20"
+              >
+                {copiedLink ? '✓ URL Copiato!' : '📋 Copia Link Webhook'}
+              </button>
+            </section>
+
             <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-3">
               <h3 className="font-bold text-sm text-slate-200">Impostazioni Ciclo & Budget</h3>
               
@@ -686,10 +768,13 @@ export default function Home() {
                   min="1"
                   max="31"
                   value={payday}
-                  onChange={(e) => setPayday(Math.max(1, Math.min(31, Number(e.target.value))))}
+                  onChange={(e) => {
+                    const val = Math.max(1, Math.min(31, Number(e.target.value)));
+                    setPayday(val);
+                    saveUserSettings(val, monthlyBudget);
+                  }}
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-[16px] font-bold text-emerald-400 focus:outline-none"
                 />
-                <p className="text-[10px] text-slate-500 mt-1">Imposta il giorno in cui accrediti lo stipendio (es. 6).</p>
               </div>
 
               <div>
@@ -697,22 +782,28 @@ export default function Home() {
                 <input
                   type="number"
                   value={monthlyBudget}
-                  onChange={(e) => setMonthlyBudget(Number(e.target.value))}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setMonthlyBudget(val);
+                    saveUserSettings(payday, val);
+                  }}
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-[16px] font-bold text-emerald-400 focus:outline-none"
                 />
               </div>
             </section>
 
-            <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-2">
-              <h3 className="font-bold text-sm text-slate-200">Stato Sistema</h3>
-              <div className="flex justify-between text-xs text-slate-400">
-                <span>Database Backend:</span>
-                <span className="text-emerald-400 font-bold">Supabase Connesso</span>
+            <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-3">
+              <h3 className="font-bold text-sm text-slate-200">Account</h3>
+              <div className="flex justify-between items-center text-xs text-slate-400">
+                <span>Email accessibile:</span>
+                <span className="text-white font-bold">{session.user.email}</span>
               </div>
-              <div className="flex justify-between text-xs text-slate-400">
-                <span>Apple Pay Webhook:</span>
-                <span className="text-emerald-400 font-bold">Attivo</span>
-              </div>
+              <button
+                onClick={handleLogout}
+                className="w-full bg-rose-950/60 border border-rose-900/60 hover:bg-rose-900/60 text-rose-300 text-xs font-bold py-3 rounded-2xl transition"
+              >
+                🚪 Esci dall'account
+              </button>
             </section>
           </div>
         )}
