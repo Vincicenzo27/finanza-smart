@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
-// Helper per assegnare icone in base alla categoria
 const getCategoryIcon = (category) => {
   switch (category) {
     case 'Spesa': return '🛒';
@@ -26,7 +25,7 @@ export default function Home() {
   const [monthlyBudget, setMonthlyBudget] = useState(1500);
   const [simulating, setSimulating] = useState(false);
 
-  // Stato per la scheda Popup di Modifica Movimento
+  // Popup Modifica
   const [editingTx, setEditingTx] = useState(null);
   const [editAmount, setEditAmount] = useState('');
   const [editCategory, setEditCategory] = useState('Spesa');
@@ -72,21 +71,18 @@ export default function Home() {
     setSimulating(false);
   };
 
-  // Apertura popup di modifica
   const openEditModal = (tx) => {
     setEditingTx(tx);
     setEditAmount(tx.amount.toString());
     setEditCategory(tx.category || 'Spesa');
   };
 
-  // Salvataggio modifica transazione + aggiornamento memoria AI
   const handleSaveTransaction = async () => {
     if (!editingTx) return;
     setSavingEdit(true);
 
     const updatedAmount = parseFloat(editAmount);
 
-    // 1. Aggiorna la transazione corrente
     const { error: txError } = await supabase
       .from('transactions')
       .update({
@@ -96,7 +92,6 @@ export default function Home() {
       })
       .eq('id', editingTx.id);
 
-    // 2. Aggiorna la memoria del merchant (Auto-Apprendimento)
     if (!txError && editingTx.merchant) {
       await supabase
         .from('category_memory')
@@ -111,7 +106,6 @@ export default function Home() {
     fetchTransactions();
   };
 
-  // Elimina movimento
   const handleDeleteTransaction = async () => {
     if (!editingTx) return;
     setSavingEdit(true);
@@ -121,7 +115,7 @@ export default function Home() {
     fetchTransactions();
   };
 
-  // Calcoli finanziari dinamici
+  // Calcoli Finanziari Reali e Dinamici
   const entrate = transactions
     .filter(t => t.category === 'Entrate')
     .reduce((acc, t) => acc + Number(t.amount), 0);
@@ -130,9 +124,30 @@ export default function Home() {
     .filter(t => t.category !== 'Entrate')
     .reduce((acc, t) => acc + Number(t.amount), 0);
 
-  // Il patrimonio ora parte da 0.00 e varia solo in base alle Entrate e Uscite reali
   const patrimonioTotale = entrate - uscite;
   const safeToSpend = Math.max(0, monthlyBudget - uscite);
+
+  // ALGORITMO PREDITTIVO DI FINE MESE
+  const now = new Date();
+  const currentDay = now.getDate();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const remainingDays = Math.max(1, daysInMonth - currentDay + 1);
+
+  // Spesa media al giorno finora
+  const dailyAverageSpend = currentDay > 0 ? uscite / currentDay : 0;
+  // Proiezione uscite a fine mese
+  const projectedTotalSpend = uscite + (dailyAverageSpend * (daysInMonth - currentDay));
+  // Limite massimo consigliato al giorno per non sforare
+  const dailyBudgetAllowance = safeToSpend / remainingDays;
+
+  // Stato Ritmo di Spesa
+  let paceStatus = { label: 'In linea', color: 'text-emerald-400 bg-emerald-950/60 border-emerald-900/50', msg: `Puoi spendere massimo ${dailyBudgetAllowance.toFixed(2)} €/giorno.` };
+  if (projectedTotalSpend > monthlyBudget) {
+    paceStatus = { label: 'Ritmo Elevato', color: 'text-rose-400 bg-rose-950/60 border-rose-900/50', msg: `Attento! A questo ritmo sformerai il budget di ${(projectedTotalSpend - monthlyBudget).toFixed(0)} €.` };
+  } else if (uscite === 0) {
+    paceStatus = { label: 'Ottimo', color: 'text-emerald-400 bg-emerald-950/60 border-emerald-900/50', msg: 'Nessuna spesa registrata questo mese.' };
+  }
+
   const healthScore = Math.max(0, Math.min(100, Math.round(100 - (uscite / monthlyBudget) * 100)));
 
   const filteredTransactions = transactions.filter(t => {
@@ -146,8 +161,7 @@ export default function Home() {
     categoriesMap[t.category] = (categoriesMap[t.category] || 0) + Number(t.amount);
   });
 
-  // Formattazione mese e anno correnti
-  const currentMonthYear = new Date().toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+  const currentMonthYear = now.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
   const formattedMonth = currentMonthYear.charAt(0).toUpperCase() + currentMonthYear.slice(1);
 
   return (
@@ -179,6 +193,7 @@ export default function Home() {
         {/* TAB 1: HOME */}
         {activeTab === 'home' && (
           <>
+            {/* Card Patrimonio Totale */}
             <section className="bg-gradient-to-b from-[#111827] to-[#0f172a] p-5 rounded-3xl border border-slate-800/80 shadow-xl">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-xs font-bold text-slate-400 tracking-wider uppercase">Patrimonio Totale</span>
@@ -203,26 +218,34 @@ export default function Home() {
               </div>
             </section>
 
+            {/* Card Stima di Fine Mese (Algoritmo Predittivo Reale) */}
             <section className="bg-[#0f172a] p-4 rounded-3xl border border-slate-800/80">
               <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
                   <span className="text-amber-400">✨</span> Stima di Fine Mese
                 </div>
-                <span className="text-[10px] font-semibold bg-emerald-950/60 text-emerald-400 border border-emerald-900/50 px-2 py-0.5 rounded-full">
-                  Algoritmo Predittivo
+                <span className={`text-[10px] font-semibold border px-2 py-0.5 rounded-full ${paceStatus.color}`}>
+                  {paceStatus.label}
                 </span>
               </div>
               
-              <p className="text-sm font-semibold text-slate-200 mt-1">
-                Safe-to-Spend Rimanente: <span className="text-emerald-400 font-bold">{safeToSpend.toFixed(2)} €</span>
-              </p>
+              <div className="flex justify-between items-baseline mt-2">
+                <p className="text-xs text-slate-400 font-medium">Safe-to-Spend Rimanente:</p>
+                <p className="text-lg font-black text-emerald-400">{safeToSpend.toFixed(2)} €</p>
+              </div>
 
-              <div className="mt-2 text-xs text-slate-400 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/40 flex items-start gap-2">
-                <span>💡</span>
-                <span>In base alle tue spese attuali, il budget rimanente stimato viaggia a ritmo regolare.</span>
+              <div className="mt-3 text-xs text-slate-300 bg-slate-900/80 p-3 rounded-2xl border border-slate-800/60 space-y-1.5">
+                <div className="flex justify-between text-[11px] text-slate-400">
+                  <span>Giorno del mese: <strong className="text-white">{currentDay}/{daysInMonth}</strong></span>
+                  <span>Giorni rimasti: <strong className="text-white">{remainingDays}</strong></span>
+                </div>
+                <p className="text-slate-300 pt-1 border-t border-slate-800/80">
+                  💡 {paceStatus.msg}
+                </p>
               </div>
             </section>
 
+            {/* Ultimi Movimenti Auto-Rilevati */}
             <section className="space-y-3 pt-2">
               <h3 className="text-sm font-bold text-slate-300 tracking-wide">
                 Ultimi Movimenti Auto-Rilevati
