@@ -33,9 +33,14 @@ export default function Home() {
   const [monthlyBudget, setMonthlyBudget] = useState(1500);
   const [payday, setPayday] = useState(6);
 
-  // Stato Simulatore Webhook
-  const [simulating, setSimulating] = useState(false);
-  const [simFeedback, setSimFeedback] = useState(null);
+  // Form Manual Inserimento Movimento
+  const [manualType, setManualType] = useState('uscita'); // 'uscita' | 'entrata'
+  const [manualAmount, setManualAmount] = useState('');
+  const [manualMerchant, setManualMerchant] = useState('');
+  const [manualCategory, setManualCategory] = useState('Spesa');
+  const [manualDate, setManualDate] = useState(formatDateStr(new Date()));
+  const [savingManual, setSavingManual] = useState(false);
+  const [manualSuccessMsg, setManualSuccessMsg] = useState('');
 
   // Popup Modifica Movimento
   const [editingTx, setEditingTx] = useState(null);
@@ -46,7 +51,6 @@ export default function Home() {
   useEffect(() => {
     fetchTransactions();
 
-    // ASCASCOLTATORE REALTIME SUPABASE: Aggiorna la Home live appena arriva una spesa dall'iPhone
     const channel = supabase
       .channel('realtime-transactions')
       .on(
@@ -82,35 +86,39 @@ export default function Home() {
     setLoading(false);
   };
 
-  const handleSimulateWebhook = async () => {
-    setSimulating(true);
-    setSimFeedback(null);
-    try {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const newTx = {
-        merchant: 'Esselunga',
-        amount: 34.20,
-        category: 'Spesa',
-        date: todayStr,
-        source: 'Simulatore App',
-        verified: true
-      };
+  const handleAddManualTransaction = async (e) => {
+    e.preventDefault();
+    if (!manualAmount || !manualMerchant) return;
 
-      const { error } = await supabase
-        .from('transactions')
-        .insert([newTx]);
+    setSavingManual(true);
+    setManualSuccessMsg('');
 
-      if (error) {
-        console.error('Database Error:', error);
-        setSimFeedback({ type: 'error', text: `❌ Errore Supabase: ${error.message}` });
-      } else {
-        setSimFeedback({ type: 'success', text: '✅ Spesa registrata! La lista si aggiorna in automatico.' });
-      }
-    } catch (e) {
-      console.error(e);
-      setSimFeedback({ type: 'error', text: '❌ Errore durante la registrazione della spesa' });
+    const finalCategory = manualType === 'entrata' ? 'Entrate' : manualCategory;
+
+    const newTx = {
+      merchant: manualMerchant,
+      amount: parseFloat(manualAmount),
+      category: finalCategory,
+      date: manualDate || formatDateStr(new Date()),
+      source: 'Manuale App',
+      verified: true
+    };
+
+    const { error } = await supabase.from('transactions').insert([newTx]);
+
+    setSavingManual(false);
+
+    if (!error) {
+      setManualSuccessMsg('✅ Movimento registrato con successo!');
+      setManualAmount('');
+      setManualMerchant('');
+      setTimeout(() => {
+        setManualSuccessMsg('');
+        setActiveTab('home');
+      }, 1200);
+    } else {
+      alert(`Errore: ${error.message}`);
     }
-    setSimulating(false);
   };
 
   const openEditModal = (tx) => {
@@ -257,7 +265,7 @@ export default function Home() {
                 Auto-Log
               </span>
             </div>
-            <p className="text-xs text-slate-400">Zero Inserimento Manuale</p>
+            <p className="text-xs text-slate-400">Tracciamento Finanziario Smart</p>
           </div>
         </div>
 
@@ -329,7 +337,7 @@ export default function Home() {
 
             <section className="space-y-3 pt-2">
               <h3 className="text-sm font-bold text-slate-300 tracking-wide">
-                Ultimi Movimenti Auto-Rilevati
+                Ultimi Movimenti
               </h3>
 
               <div className="flex gap-2">
@@ -405,43 +413,112 @@ export default function Home() {
           </>
         )}
 
-        {/* TAB 2: AUTO-INPUT */}
-        {activeTab === 'auto-input' && (
+        {/* TAB 2: INSERISCI MANUALE */}
+        {activeTab === 'inserisci' && (
           <div className="space-y-4">
-            <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-3">
-              <h2 className="font-extrabold text-base text-emerald-400 flex items-center gap-2">
-                ⚡ Integrazione iPhone Webhook
+            <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-4">
+              <h2 className="font-extrabold text-base text-white flex items-center gap-2">
+                ➕ Nuovo Movimento
               </h2>
-              <p className="text-xs text-slate-300">
-                URL del tuo Webhook attivo su Vercel per ricevere transazioni in automatico:
-              </p>
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] font-mono text-emerald-300 break-all select-all">
-                https://finanza-smart-w7fp.vercel.app/api/webhook
+
+              {/* Selector Uscita / Entrata */}
+              <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setManualType('uscita')}
+                  className={`py-2.5 rounded-xl font-extrabold text-xs transition ${
+                    manualType === 'uscita'
+                      ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  🔴 Uscita (Spesa)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setManualType('entrata')}
+                  className={`py-2.5 rounded-xl font-extrabold text-xs transition ${
+                    manualType === 'entrata'
+                      ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  🟢 Entrata (Incasso)
+                </button>
               </div>
-            </section>
 
-            <section className="bg-[#0f172a] p-5 rounded-3xl border border-slate-800 space-y-3">
-              <h3 className="font-bold text-sm text-white">🧪 Simulatore Notifica Banca</h3>
-              <p className="text-xs text-slate-400">
-                Invia una spesa di test (€ 34.20 Esselunga) direttamente nel database Supabase:
-              </p>
-              <button 
-                onClick={handleSimulateWebhook}
-                disabled={simulating}
-                className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-extrabold py-3 rounded-2xl flex items-center justify-center gap-2 text-xs shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95"
-              >
-                {simulating ? 'Inoltro in corso...' : '📲 Simula Arrivo Spesa'}
-              </button>
-
-              {simFeedback && (
-                <div className={`p-3 rounded-xl text-xs font-semibold border ${
-                  simFeedback.type === 'success' 
-                    ? 'bg-emerald-950/80 border-emerald-800 text-emerald-300' 
-                    : 'bg-rose-950/80 border-rose-800 text-rose-300'
-                }`}>
-                  {simFeedback.text}
+              <form onSubmit={handleAddManualTransaction} className="space-y-3 pt-1">
+                <div>
+                  <label className="text-xs text-slate-400 font-semibold block mb-1">Importo (€)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    required
+                    value={manualAmount}
+                    onChange={(e) => setManualAmount(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-lg font-bold text-emerald-400 focus:outline-none focus:border-emerald-500"
+                  />
                 </div>
-              )}
+
+                <div>
+                  <label className="text-xs text-slate-400 font-semibold block mb-1">
+                    {manualType === 'uscita' ? 'Negozio / Esercente' : 'Fonte / Causale'}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={manualType === 'uscita' ? 'Es. Esselunga, Bar Milano...' : 'Es. Stipendio, Rimborso, Bonifico...'}
+                    required
+                    value={manualMerchant}
+                    onChange={(e) => setManualMerchant(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                {manualType === 'uscita' && (
+                  <div>
+                    <label className="text-xs text-slate-400 font-semibold block mb-1">Categoria</label>
+                    <select
+                      value={manualCategory}
+                      onChange={(e) => setManualCategory(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 font-semibold focus:outline-none focus:border-emerald-500"
+                    >
+                      <option value="Spesa">🛒 Spesa</option>
+                      <option value="Ristorazione">🍕 Ristorazione</option>
+                      <option value="Trasporti">🚗 Trasporti</option>
+                      <option value="Shopping">🛍️ Shopping</option>
+                      <option value="Utenze">💡 Utenze</option>
+                      <option value="Salute">💊 Salute</option>
+                      <option value="Intrattenimento">🎬 Intrattenimento</option>
+                      <option value="Altro">💳 Altro</option>
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-xs text-slate-400 font-semibold block mb-1">Data</label>
+                  <input
+                    type="date"
+                    value={manualDate}
+                    onChange={(e) => setManualDate(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-300 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={savingManual}
+                  className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95 mt-2"
+                >
+                  {savingManual ? 'Registrazione in corso...' : '💾 Registra Movimento'}
+                </button>
+
+                {manualSuccessMsg && (
+                  <p className="text-xs text-center text-emerald-400 font-bold mt-2 animate-pulse">
+                    {manualSuccessMsg}
+                  </p>
+                )}
+              </form>
             </section>
           </div>
         )}
@@ -516,8 +593,8 @@ export default function Home() {
                 <span className="text-emerald-400 font-bold">Supabase Connesso</span>
               </div>
               <div className="flex justify-between text-xs text-slate-400">
-                <span>Hosting:</span>
-                <span className="text-emerald-400 font-bold">Vercel Production</span>
+                <span>Apple Pay Webhook:</span>
+                <span className="text-emerald-400 font-bold">Attivo</span>
               </div>
             </section>
           </div>
@@ -604,11 +681,11 @@ export default function Home() {
           <span className="text-[10px] font-bold">Home</span>
         </button>
         <button 
-          onClick={() => setActiveTab('auto-input')}
-          className={`flex flex-col items-center gap-1 ${activeTab === 'auto-input' ? 'text-emerald-400' : 'text-slate-500'}`}
+          onClick={() => setActiveTab('inserisci')}
+          className={`flex flex-col items-center gap-1 ${activeTab === 'inserisci' ? 'text-emerald-400' : 'text-slate-500'}`}
         >
-          <span className="text-lg">⚡</span>
-          <span className="text-[10px] font-bold">Auto-Input</span>
+          <span className="text-lg">➕</span>
+          <span className="text-[10px] font-bold">Inserisci</span>
         </button>
         <button 
           onClick={() => setActiveTab('analisi')}
