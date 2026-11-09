@@ -36,7 +36,7 @@ export default function Auth() {
           <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold mx-auto text-xl shadow-lg shadow-emerald-500/10">
             ⚡
           </div>
-          <h2 className="text-xl font-extrabold tracking-tight pt-2">FinAuto AI</h2>
+          <h2 className="text-xl font-extrabold tracking-tight pt-2">Finanza Smart</h2>
           <p className="text-xs text-slate-400">
             {isSignUp ? 'Crea il tuo account personale' : 'Accedi al tuo spazio finanziario'}
           </p>
