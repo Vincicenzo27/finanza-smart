@@ -10,7 +10,8 @@ const getCategoryIcon = (category) => {
     case 'Shopping': return '🛍️';
     case 'Utenze': return '💡';
     case 'Salute': return '💊';
-    case 'Intrattenimento': return '🎬';
+    case 'Uscite': return '🍻';
+    case 'Abbonamenti': return '🔄';
     case 'Entrate': return '💰';
     default: return '💳';
   }
@@ -364,7 +365,8 @@ export default function Home() {
                   <option value="Trasporti">Trasporti</option>
                   <option value="Utenze">Utenze</option>
                   <option value="Salute">Salute</option>
-                  <option value="Intrattenimento">Intrattenimento</option>
+                  <option value="Uscite">Uscite</option>
+                  <option value="Abbonamenti">Abbonamenti</option>
                   <option value="Entrate">Entrate</option>
                 </select>
               </div>
@@ -425,7 +427,6 @@ export default function Home() {
                 ➕ Nuovo Movimento
               </h2>
 
-              {/* Selector Uscita / Entrata */}
               <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
                 <button
                   type="button"
@@ -493,7 +494,8 @@ export default function Home() {
                       <option value="Shopping">🛍️ Shopping</option>
                       <option value="Utenze">💡 Utenze</option>
                       <option value="Salute">💊 Salute</option>
-                      <option value="Intrattenimento">🎬 Intrattenimento</option>
+                      <option value="Uscite">🍻 Uscite</option>
+                      <option value="Abbonamenti">🔄 Abbonamenti</option>
                       <option value="Altro">💳 Altro</option>
                     </select>
                   </div>
@@ -659,7 +661,8 @@ export default function Home() {
                   <option value="Shopping">🛍️ Shopping</option>
                   <option value="Utenze">💡 Utenze</option>
                   <option value="Salute">💊 Salute</option>
-                  <option value="Intrattenimento">🎬 Intrattenimento</option>
+                  <option value="Uscite">🍻 Uscite</option>
+                  <option value="Abbonamenti">🔄 Abbonamenti</option>
                   <option value="Entrate">💰 Entrate</option>
                   <option value="Altro">💳 Altro</option>
                 </select>
