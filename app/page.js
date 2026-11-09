@@ -44,6 +44,7 @@ export default function Home() {
 
   // Popup Modifica Movimento
   const [editingTx, setEditingTx] = useState(null);
+  const [editMerchant, setEditMerchant] = useState('');
   const [editAmount, setEditAmount] = useState('');
   const [editCategory, setEditCategory] = useState('Spesa');
   const [savingEdit, setSavingEdit] = useState(false);
@@ -124,6 +125,7 @@ export default function Home() {
 
   const openEditModal = (tx) => {
     setEditingTx(tx);
+    setEditMerchant(tx.merchant || tx.merchant_name || tx.description || '');
     setEditAmount(tx.amount.toString());
     setEditCategory(tx.category || 'Spesa');
   };
@@ -133,22 +135,23 @@ export default function Home() {
     setSavingEdit(true);
 
     const updatedAmount = parseFloat(editAmount);
+    const updatedMerchant = editMerchant.trim();
 
     const { error: txError } = await supabase
       .from('transactions')
       .update({
+        merchant: updatedMerchant,
         amount: updatedAmount,
         category: editCategory,
         verified: true
       })
       .eq('id', editingTx.id);
 
-    const merchantName = editingTx.merchant || editingTx.merchant_name;
-    if (!txError && merchantName) {
+    if (!txError && updatedMerchant) {
       await supabase
         .from('category_memory')
         .upsert(
-          { merchant_name: merchantName, preferred_category: editCategory },
+          { merchant_name: updatedMerchant, preferred_category: editCategory },
           { onConflict: 'merchant_name' }
         );
     }
@@ -341,7 +344,6 @@ export default function Home() {
                 Ultimi Movimenti
               </h3>
 
-              {/* FIX: Contenitore Flessibile con min-w-0 e width definita per evitare lo sbordamento a destra */}
               <div className="flex gap-2 w-full min-w-0">
                 <input
                   type="text"
@@ -497,7 +499,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* FIX: Input Data con azzeramento WebKit per allineamento millimetrico su iOS */}
                 <div>
                   <label className="text-xs text-slate-400 font-semibold block mb-1">Data</label>
                   <input
@@ -612,8 +613,8 @@ export default function Home() {
           <div className="bg-[#0f172a] border border-slate-800 w-full max-w-sm rounded-3xl p-5 space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-200">
             <div className="flex justify-between items-center border-b border-slate-800/80 pb-3">
               <div>
-                <h3 className="font-black text-base text-white">{editingTx.merchant || editingTx.merchant_name || 'Spesa'}</h3>
-                <p className="text-[11px] text-slate-400">Modifica transazione e memoria AI</p>
+                <h3 className="font-black text-base text-white">Modifica Movimento</h3>
+                <p className="text-[11px] text-slate-400">Modifica dettagli e aggiorna memoria AI</p>
               </div>
               <button 
                 onClick={() => setEditingTx(null)}
@@ -625,13 +626,23 @@ export default function Home() {
 
             <div className="space-y-3">
               <div>
+                <label className="text-xs text-slate-400 font-semibold block mb-1">Esercente / Nome</label>
+                <input
+                  type="text"
+                  value={editMerchant}
+                  onChange={(e) => setEditMerchant(e.target.value)}
+                  className="w-full box-border bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] text-white font-semibold focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
                 <label className="text-xs text-slate-400 font-semibold block mb-1">Importo (€)</label>
                 <input
                   type="number"
                   step="0.01"
                   value={editAmount}
                   onChange={(e) => setEditAmount(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] font-bold text-emerald-400 focus:outline-none focus:border-emerald-500"
+                  className="w-full box-border bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] font-bold text-emerald-400 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
@@ -640,7 +651,7 @@ export default function Home() {
                 <select
                   value={editCategory}
                   onChange={(e) => setEditCategory(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] text-slate-200 font-semibold focus:outline-none focus:border-emerald-500"
+                  className="w-full box-border bg-slate-950 border border-slate-800 rounded-xl p-3 text-[16px] text-slate-200 font-semibold focus:outline-none focus:border-emerald-500"
                 >
                   <option value="Spesa">🛒 Spesa</option>
                   <option value="Ristorazione">🍕 Ristorazione</option>
