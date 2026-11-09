@@ -1,8 +1,8 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'FinAuto AI',
-  description: 'Tracciamento Finanziario Smart',
+  title: 'Finanza Smart',
+  description: 'Tracciamento Finanziario Personalizzato',
 };
 
 export default function RootLayout({ children }) {
