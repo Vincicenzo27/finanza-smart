@@ -237,7 +237,7 @@ export default function Home() {
     };
   }
 
-  // HEALTH SCORE CALCULATION & METRICS FOR ANALYSIS
+  // METRICHE PER SCHEDA ANALISI
   const rawHealthScore = Math.max(0, Math.min(100, Math.round(100 - (cycleUscite / (monthlyBudget || 1)) * 100)));
   const healthScore = isNaN(rawHealthScore) ? 100 : rawHealthScore;
 
@@ -251,8 +251,9 @@ export default function Home() {
     healthColor = 'text-amber-400 bg-amber-500/20 border-amber-500/30';
   }
 
+  const netSavingsCycle = cycleEntrate - cycleUscite;
   const savingsRate = cycleEntrate > 0 
-    ? Math.max(0, Math.round(((cycleEntrate - cycleUscite) / cycleEntrate) * 100)) 
+    ? Math.max(0, Math.round((netSavingsCycle / cycleEntrate) * 100)) 
     : 0;
 
   const filteredTransactions = transactions.filter(t => {
@@ -267,7 +268,6 @@ export default function Home() {
     categoriesMap[t.category] = (categoriesMap[t.category] || 0) + Number(t.amount);
   });
 
-  // Top Spesa per categoria
   let topCategory = 'Nessuna';
   let topCategoryAmount = 0;
   Object.entries(categoriesMap).forEach(([cat, amt]) => {
@@ -556,7 +556,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 3: ANALISI (NUOVA INTERFACCIA COMPLETA) */}
+        {/* TAB 3: ANALISI */}
         {activeTab === 'analisi' && (
           <div className="space-y-4">
             
@@ -589,18 +589,23 @@ export default function Home() {
               </p>
             </section>
 
-            {/* KPI Grid Metrics */}
-            <section className="grid grid-cols-2 gap-3">
-              <div className="bg-[#0f172a] p-4 rounded-3xl border border-slate-800/80 space-y-1">
-                <span className="text-[11px] font-semibold text-slate-400">🔥 Spesa Media/Giorno</span>
-                <p className="text-lg font-black text-rose-400">{dailyAverageSpend.toFixed(2)} €</p>
-                <span className="text-[10px] text-slate-500 block">Basato su {currentCycleDay} giorni</span>
+            {/* KPI Grid Metrics (Media Giornaliera, Risparmiati in €, Risparmio in %) */}
+            <section className="grid grid-cols-3 gap-2">
+              <div className="bg-[#0f172a] p-3 rounded-2xl border border-slate-800/80 space-y-1 text-center">
+                <span className="text-[10px] font-semibold text-slate-400 block truncate">🔥 Media/Giorno</span>
+                <p className="text-base font-black text-rose-400">{dailyAverageSpend.toFixed(2)} €</p>
               </div>
 
-              <div className="bg-[#0f172a] p-4 rounded-3xl border border-slate-800/80 space-y-1">
-                <span className="text-[11px] font-semibold text-slate-400">🌱 Tasso di Risparmio</span>
-                <p className="text-lg font-black text-emerald-400">{savingsRate}%</p>
-                <span className="text-[10px] text-slate-500 block">Delle entrate del ciclo</span>
+              <div className="bg-[#0f172a] p-3 rounded-2xl border border-slate-800/80 space-y-1 text-center">
+                <span className="text-[10px] font-semibold text-slate-400 block truncate">💰 Risparmiati</span>
+                <p className={`text-base font-black ${netSavingsCycle >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {netSavingsCycle >= 0 ? '+' : ''}{netSavingsCycle.toFixed(2)} €
+                </p>
+              </div>
+
+              <div className="bg-[#0f172a] p-3 rounded-2xl border border-slate-800/80 space-y-1 text-center">
+                <span className="text-[10px] font-semibold text-slate-400 block truncate">🌱 Risparmio %</span>
+                <p className="text-base font-black text-emerald-400">{savingsRate}%</p>
               </div>
             </section>
 
